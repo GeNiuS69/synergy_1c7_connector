@@ -8,7 +8,7 @@ Synergy 1C 7.7 Connector
 ==================
 
 Gemfile:  
-`gem 'synergy_1c7_connector', :git => 'git://github.com/secoint/synergy_1c7_connector.git'`
+`gem 'synergy_1c7_connector', :git => 'git://github.com/webgradus/synergy_1c7_connector.git'`
 
     bundle install
     rake synergy_1c7_connector:install:migrations
