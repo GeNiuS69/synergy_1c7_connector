@@ -293,7 +293,7 @@ module Synergy1c7Connector
             puts "parsing taxons for taxonomy: #{taxon.taxonomy.name}"            
             groups.each do |group|
                 puts "parsing taxon: #{group.css("Наименование").first.text}"
-                new_taxon = Taxon.find_or_create_by_code_1c(:code_1c => group.css("Ид").first.text, :name => group.css("Наименование").first.text, :taxonomy_id => taxon.taxonomy_id) {|t| t.parent = taxon.id }                
+                new_taxon = Taxon.find_or_create_by_code_1c(:code_1c => group.css("Ид").first.text, :name => group.css("Наименование").first.text, :taxonomy_id => taxon.taxonomy_id) {|t| t.parent = taxon }                
                 parse_groups_from_import_xml(group.css("Группы Группа"), new_taxon) if !group.css("Группы Группа").blank?
             end
         end
