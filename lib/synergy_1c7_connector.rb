@@ -344,8 +344,8 @@ module Synergy1c7Connector
                 product = Product.find_or_initialize_by_code_1c(xml_product.css("Ид").first.text)
                 if product_if.blank? && !xml_product.css("Артикул").first.blank?
                     product.sku = xml_product.css("Артикул").first.text
-                    product.name = xml_product.css("Наименование").first.text
-                    puts "Parse product #{product.name}"
+                    product.name = product.sku + " " + xml_product.css("Наименование").first.text
+                    puts "Parse product #{product.sku + " " + product.name}"
                     xml_product.css("ЗначенияСвойства").each do |xml_property|
                         property = product.product_properties.find_or_initialize_by_product_id_and_property_id(product.id, Property.find_by_code_1c(xml_property.css("Ид").text).id)
                         value = xml_property.css("Значение").text
@@ -370,6 +370,7 @@ module Synergy1c7Connector
                         puts new_image.save
                         puts new_image.errors
                         new_image.save
+                        product.save
                     end
                     description = xml_product.css("Описание").first
                     if !description.blank?
@@ -384,7 +385,7 @@ module Synergy1c7Connector
                     product.save!
                 elsif !xml_product.css("Артикул").first.blank?
                     product.sku = xml_product.css("Артикул").first.text
-                    product.name = xml_product.css("Наименование").first.text
+                    product.name = product.sku + " " + xml_product.css("Наименование").first.text
                     xml_product.css("ЗначенияСвойства").each do |xml_property|
                         property = product.product_properties.find_or_initialize_by_product_id_and_property_id(product.id, Property.find_by_code_1c(xml_property.css("Ид").text).id)
                         value = xml_property.css("Значение").text
@@ -397,8 +398,10 @@ module Synergy1c7Connector
                         property.save if not value.blank?
                     end
                     images = xml_product.css("Картинка")
+                    puts "Parse product #{product.sku + " " + product.name}"
+                    product.images.destroy_all if images.present?
                     images.each do |image|
-                     puts "Parse image in path #{image.text}"
+                        puts "Parse image in path #{image.text}"
                         filename = image.text.split('/').last
                         image = File.open("#{Rails.root}/webdata/" + image.text)
                         puts filename
@@ -407,6 +410,7 @@ module Synergy1c7Connector
                         puts new_image.save
                         puts new_image.errors
                         new_image.save
+                        product.save
                     end
 
                     description = xml_product.css("Описание").first
