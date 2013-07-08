@@ -1,6 +1,6 @@
 Deface::Override.new(:virtual_path => 'spree/admin/shared/_configuration_menu',
                      :name => 'configuration menu',
-                     :insert_after => "[data-hook='admin_configurations_sidebar_menu']",
+                     :insert_bottom => "[data-hook='admin_configurations_sidebar_menu']",
                      :partial => "admin/shared/connector_menu")
 
 #Deface::Override.new(:virtual_path => 'spree/layouts/admin',
