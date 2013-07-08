@@ -1,7 +1,7 @@
 Deface::Override.new(:virtual_path => 'spree/admin/shared/_configuration_menu',
                      :name => 'configuration menu',
                      :insert_after => "[data-hook='admin_configurations_sidebar_menu']",
-                     :text => "<li<%== ' class="active"' if controller.controller_name == 'one_c7_connectors' %>><%= link_to t('one_c7_connector'), admin_one_c7_connector_path %></li>")
+                     :partial => "shared/menu")
 
 Deface::Override.new(:virtual_path => 'spree/layouts/admin',
                      :name => 'admin tab',
