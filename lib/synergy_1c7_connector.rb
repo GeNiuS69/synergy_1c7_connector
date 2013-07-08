@@ -1,6 +1,5 @@
 #encoding: UTF-8
 require 'spree_core'
-require 'synergy_1c7_connector_hooks'
 
 module Synergy1c7Connector
     class Engine < Rails::Engine
