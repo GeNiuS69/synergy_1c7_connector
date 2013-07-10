@@ -27,12 +27,28 @@ module Synergy1c7Connector
             set_product_price
             puts 'Start parse xml!'
             # If file present
-            import_path = "#{Rails.root}/webdata/import.xml"
-            offers_path = "#{Rails.root}/webdata/offers.xml"
-            xml = Nokogiri::XML.parse(File.read(import_path))
-            offers_xml = Nokogiri::XML.parse(File.read(offers_path))
+#           import_path = "#{Rails.root}/webdata/import.xml"
+ #          offers_path = "#{Rails.root}/webdata/offers.xml"
+            xml = Nokogiri::XML.parse(File.read(params[:connector][:file].path))
+#           offers_xml = Nokogiri::XML.parse(File.read(offers_path))
 
             # Parsing
+            details = xml.css("ДЕТАЛЬ")
+            details.each do |detail|
+                product = Product.where(:code_1c => detail.css("КОД").first.text, :name => detail.css("НАЗВАНИЕ").first.text,:price => 0).first_or_create
+                product.update_attributes(:sku => detail.css("АРТИКУЛ").first.text, :price => detail.css("ЦЕНА").first.text)
+                parse_analogs(product,detail.css("АНАЛОГИ"))
+
+                #TODO:Original numbers
+                
+                parse_autos(detail.css("ПРИМЕНИМОСТЬ АВТО"), product)
+
+
+            end
+                        
+            
+            
+            #
             taxonomy = Taxonomy.find_or_create_by_name(xml.css("Классификатор Группы Группа Наименование").first.text)
             taxonomy.taxons.first.update_attributes(:name => xml.css("Классификатор Группы Группа Наименование").first.text, :code_1c => xml.css("Классификатор Группы Группа Ид").first.text)
             view_taxonomy = Taxonomy.find_or_create_by_name("Каталог")
@@ -426,5 +442,41 @@ module Synergy1c7Connector
                 end
             end
         end
+    end
+end
+
+########################Autoshop################################
+
+
+
+def parse_analogs(product,xml_analogs)
+    xml_analogs.each do |analog|
+        analog_product = Product.find_or_initialize_by_code_1c(analog.css("КОД").first.text)
+        analog_product.name = 'temporarily'
+        analog_product.price = 0
+        if analog_product.save(:validate => false)
+            product.products << analog_product
+        end
+    end
+end
+
+def parse_autos(xml_autos, detail)
+    arg_lev_1 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_1").first.text
+    arg_lev_2 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_2").first.text
+    arg_lev_3 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_3").first.text
+
+    xml_autos.each do |xml_auto|
+        engine = xml_auto.css("ДВИГАТЕЛЬ")
+        auto = CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
+
+        detail.car_modifications << auto
+
+        taxons = auto.taxonomy.taxons
+        taxon1 = taxons.where(:parent_id => taxons.first.id, :name => agr_lev_1).first_or_create
+        taxon2 = taxons.where(:parent_id => taxon1.id, :name => agr_lev_2 ).first_or_create
+        taxon3 = taxons.where(:parent_id => taxon2.id, :name => agr_lev_3 ).first_or_create
+        taxon3.products << detail
+
+
     end
 end

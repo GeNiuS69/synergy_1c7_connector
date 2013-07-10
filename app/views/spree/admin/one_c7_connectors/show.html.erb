@@ -2,8 +2,9 @@
 
 <h1><%= t(:one_c7_connector) %></h1>
 
-<% form_tag admin_one_c7_connector_path, :multipart => true do %>
-   <p class="form-buttons">
+<%= form_tag admin_one_c7_connector_path, :multipart => true do %>
+    <p class="form-buttons">
+    <input type="file" id='connector_file' name="connector[file]" /> 
     <%= button t(:import) %>
   </p>
 <% end %>
