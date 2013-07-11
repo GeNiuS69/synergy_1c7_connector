@@ -4,9 +4,9 @@
 
 <%= form_tag admin_one_c7_connector_path, :multipart => true do%>
   <fieldset class="security no-border-bottom">
-    <legend>Файлы из 1С</legend>
+    <legend>Файл XML</legend>
     <label>Имя файла</label><br>
-    <input type="file" id='connector_file' name="connector[file]" /> 
+    <input type="file" id='connector_file' name="connector[file]" required /> 
     <input type="hidden" id='connector_type' name='connector[type]' value="1c"/>
     <div class='clear'></div>
     <div class="form-buttons filter-actions actions">
@@ -17,9 +17,9 @@
 <br>
 <%= form_tag admin_one_c7_connector_path, :multipart => true do%>
   <fieldset class="security no-border-bottom">
-    <legend>Файлы Excel</legend>
+    <legend>Файлы XLSX</legend>
     <label>Файлы</label><br>
-    <input type="file" id='connector_file' name="connector[files][]" multiple="true" />
+    <input type="file" id='connector_file' name="connector[files][]" multiple="true" required />
     <input type="hidden" id='connector_type' name="connector[type]" value='excel' />
     <div class='clear'></div>
     <div class="form-buttons filter-actions actions">

@@ -66,7 +66,7 @@ module Synergy1c7Connector
                 detail.car_modifications << car
 
                 if car.taxonomy_id.nil?
-                    taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+                    taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.engine_model}")
                     car.update_attributes(:taxonomy_id => taxonomy.id)
                 end
 
