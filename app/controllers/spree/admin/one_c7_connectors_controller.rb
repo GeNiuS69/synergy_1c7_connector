@@ -5,8 +5,24 @@ class Admin::OneC7ConnectorsController < Admin::BaseController
 
     end
     def create
-        ConnectorWorker.perform_async
-        redirect_to admin_one_c7_connector_path, :notice => t(:successful_1c_import)
+        if params[:connector][:type]=='1c'
+            file = params[:connector][:file]
+            File.open(Rails.root.join('public','uploads',file.original_filename),'wb') do |f|
+                f.write(file.read)
+            end
+            Connector1cWorker.perform_async(file.original_filename)
+            redirect_to admin_one_c7_connector_path, :notice => t(:successful_1c_import)
+        elsif params[:connector][:type]=='excel'
+            params[:connector][:files].each do |file|
+                File.open(Rails.root.join('public','uploads',file.original_filename),'wb') do |f|
+                    f.write(file.read)
+                end
+                ConnectorxlsWorker.perform_async(file.original_filename)
+            end
+            redirect_to admin_one_c7_connector_path, :notice => t(:successful_1c_import)
+        else
+            redirect_to admin_one_c7_connector_path, :notice => t(:fail_1c_import)
+        end
     end
 
     def discharge

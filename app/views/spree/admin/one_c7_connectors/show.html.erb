@@ -2,9 +2,28 @@
 
 <h1><%= t(:one_c7_connector) %></h1>
 
-<%= form_tag admin_one_c7_connector_path, :multipart => true do %>
-    <p class="form-buttons">
+<%= form_tag admin_one_c7_connector_path, :multipart => true do%>
+  <fieldset class="security no-border-bottom">
+    <legend>Файлы из 1С</legend>
+    <label>Имя файла</label><br>
     <input type="file" id='connector_file' name="connector[file]" /> 
-    <%= button t(:import) %>
-  </p>
+    <input type="hidden" id='connector_type' name='connector[type]' value="1c"/>
+    <div class='clear'></div>
+    <div class="form-buttons filter-actions actions">
+        <%= button t(:import) %>
+    </div>
+  </fieldset>
+<% end %>
+<br>
+<%= form_tag admin_one_c7_connector_path, :multipart => true do%>
+  <fieldset class="security no-border-bottom">
+    <legend>Файлы Excel</legend>
+    <label>Файлы</label><br>
+    <input type="file" id='connector_file' name="connector[files][]" multiple="true" />
+    <input type="hidden" id='connector_type' name="connector[type]" value='excel' />
+    <div class='clear'></div>
+    <div class="form-buttons filter-actions actions">
+        <%= button t(:import) %>
+    </div>
+  </fieldset>
 <% end %>

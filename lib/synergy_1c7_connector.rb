@@ -23,46 +23,37 @@ module Synergy1c7Connector
         def initialize
             @xml_string = ""
         end
-        def parse_xml
+        def parse_xml(filename)
             set_product_price
             puts 'Start parse xml!'
-            # If file present
-#           import_path = "#{Rails.root}/webdata/import.xml"
- #          offers_path = "#{Rails.root}/webdata/offers.xml"
-            xml = Nokogiri::XML.parse(File.read(params[:connector][:file].path))
-#           offers_xml = Nokogiri::XML.parse(File.read(offers_path))
-
+            xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
             # Parsing
             details = xml.css("ДЕТАЛЬ")
             details.each do |detail|
-                product = Product.where(:code_1c => detail.css("КОД").first.text, :name => detail.css("НАЗВАНИЕ").first.text,:price => 0).first_or_create
-                product.update_attributes(:sku => detail.css("АРТИКУЛ").first.text, :price => detail.css("ЦЕНА").first.text)
+
+                product = Spree::Product.where(:code_1c => detail.css("КОД").first.text).first_or_initialize
+                product.name = detail.css("НАЗВАНИЕ").first.text
+                product.sku = detail.css("АРТИКУЛ").first.text
+                product.price = detail.css("ЦЕНА").first.text.to_d
+                product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
+                product.deleted_at = nil
+                product.available_on = Time.now
+                product.save
+
+                puts 'Start parse analogs'
                 parse_analogs(product,detail.css("АНАЛОГИ"))
-
+                puts 'Stop parse analogs'
                 #TODO:Original numbers
-                
-                parse_autos(detail.css("ПРИМЕНИМОСТЬ АВТО"), product)
-
 
             end
-                        
-            
-            
-            #
-            taxonomy = Taxonomy.find_or_create_by_name(xml.css("Классификатор Группы Группа Наименование").first.text)
-            taxonomy.taxons.first.update_attributes(:name => xml.css("Классификатор Группы Группа Наименование").first.text, :code_1c => xml.css("Классификатор Группы Группа Ид").first.text)
-            view_taxonomy = Taxonomy.find_or_create_by_name("Каталог")
-            view_taxonomy.update_attributes(:show_on_homepage => true)
-            puts 'Start parse taxons'
-            parse_groups_from_import_xml(xml.css("Классификатор Группы Группа Группы Группа"), taxonomy.root)
-            puts 'End parse taxons'
-            create_properties(xml.css("Свойства Свойство"))
-            puts 'Start parse products!'
-            parse_products(xml.css("Товар"), get_property_values(xml.css("Справочник")))
-            puts 'End parse products'
-            parse_products_offers_xml(offers_xml.css("Предложение"))
-            set_product_price
-            create_similar_taxons(view_taxonomy.root, taxonomy.root)
+            File.delete("#{Rails.root}/public/uploads/#{filename}")
+        end
+
+
+        def parse_xls(filename)
+            xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")
+
+            File.delete("#{Rails.root}/public/uploads/#{filename}")
         end
 
         def discharge(order)
@@ -289,7 +280,7 @@ module Synergy1c7Connector
         end
 
         def set_product_price
-            Product.all.each do |product|
+            Spree::Product.all.each do |product|
                 unless product.variants.blank?
                     price = 0
                     cost_price = 0
@@ -450,9 +441,11 @@ end
 
 
 def parse_analogs(product,xml_analogs)
-    xml_analogs.each do |analog|
-        analog_product = Product.find_or_initialize_by_code_1c(analog.css("КОД").first.text)
-        analog_product.name = 'temporarily'
+    xml_analogs.css("КОД").each_with_index do |analog,ind|
+        analog_product = Spree::Product.find_or_initialize_by_code_1c(analog.text)
+        analog_product.name = 'temporarily-' + ind.to_s + '-' + product.code_1c
+        analog_product.permalink = 'temporarily-' + ind.to_s + '-' + product.code_1c
+        analog_product.deleted_at = nil
         analog_product.price = 0
         if analog_product.save(:validate => false)
             product.products << analog_product
@@ -467,7 +460,7 @@ def parse_autos(xml_autos, detail)
 
     xml_autos.each do |xml_auto|
         engine = xml_auto.css("ДВИГАТЕЛЬ")
-        auto = CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
+        auto = Spre::CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
 
         detail.car_modifications << auto
 
