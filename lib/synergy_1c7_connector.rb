@@ -40,9 +40,7 @@ module Synergy1c7Connector
                 product.available_on = Time.now
                 product.save
 
-                puts 'Start parse analogs'
                 parse_analogs(product,detail.css("АНАЛОГИ"))
-                puts 'Stop parse analogs'
                 #TODO:Original numbers
 
             end
@@ -52,29 +50,35 @@ module Synergy1c7Connector
 
         def parse_xls(filename)
             xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-            table = xls.get_table(["Производитель","Модель","Двигатель","Начало производства","Окончание производства","Мощность, кВ","Мощность, л.с.","Объем","Топливо","Кузов"])
 
-            detail = Spree::Product.find_by_code_1c(table["Код 1С"].first.to_s)
+            table = xls.get_table(["марка","модель","модификация","год начала выпуска","год окончания выпуска","мощность, кВт","мощность, Л.с.","объем двигателя","топливо","тип кузова", "код двигателя"])
 
-            agr_lev_1 = table["Агрегатный уровень 1"].first
-            agr_lev_2 = table["Агрегатный уровень 2"].first
-            agr_lev_3 = table["Агрегатный уровень 3"].first
+            detail = Spree::Product.find_by_code_1c(table["код 1С"].first.to_s)
+
+            agr_levels = table["агрегатная сборочна группа по уровням"].first.split('; ')
 
             table[:table].each do |auto|
                 unless auto.empty?
-                car = Spree::CarMaker.find_or_create_by_name(auto["Производитель"]).car_models.find_or_create_by_name(auto["Модель"]).car_modifications.where(:name => auto["Модель"]+" "+auto["Двигатель"].to_s,:engine_model => auto["Двигатель"].to_s, :engine_displacement => auto["Объем"], :engine_type => auto["Топливо"], :hoursepower => auto["Мощность, л.с."], :body_style => auto["Кузов"], :start_production => Date.strptime(auto["Начало производства"],'%Y.%m'), :end_production => Date.strptime(auto["Окончание производства"],'%Y.%m')).first_or_create
+                car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"],:engine_model => auto["код двигателя"].to_s, :engine_displacement => auto["объем двигателя"], :engine_type => auto["топливо"], :hoursepower => auto["мощность, Л.с."], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["год начала выпуска"],'%Y.%m'), :end_production => Date.strptime(auto["год окончания выпуска"],'%Y.%m')).first_or_create
                 detail.car_modifications << car
+                detail.update_attributes(:name => table["Наименование"])
 
                 if car.taxonomy_id.nil?
-                    taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.engine_model}")
+                    taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
                     car.update_attributes(:taxonomy_id => taxonomy.id)
                 end
 
                 taxons = car.taxonomy.taxons
-                taxon1 = taxons.where(:parent_id => taxons.first.id, :name => agr_lev_1).first_or_create
-                taxon2 = taxons.where(:parent_id => taxon1.id, :name => agr_lev_2).first_or_create
-                taxon3 = taxons.where(:parent_id => taxon2.id, :name => agr_lev_3).first_or_create
-                taxon3.products << detail
+
+                taxon = taxons.where('parent_id IS ?',nil).first
+                parent = taxon.id
+
+                agr_levels.each do |agr_lev|
+                  taxon = taxons.where(:parent_id => parent, :name => agr_lev).first_or_create
+                  parent = taxon.id
+                end
+
+                taxon.products << detail
             end
             end
 
@@ -468,14 +472,12 @@ end
 
 def parse_analogs(product,xml_analogs)
     xml_analogs.css("КОД").each_with_index do |analog,ind|
-        analog_product = Spree::Product.find_or_initialize_by_code_1c(analog.text)
-        analog_product.name = 'temporarily-' + ind.to_s + '-' + product.code_1c
-        analog_product.permalink = 'temporarily-' + ind.to_s + '-' + product.code_1c
-        analog_product.deleted_at = nil
-        analog_product.price = 0
-        if analog_product.save(:validate => false)
-            product.products << analog_product
+        analog_product = Spree::Product.find_by_code_1c(analog.text)
+        if analog_product.nil?
+          analog_product = Spree::Product.new(:name => 'temporarily-' + ind.to_s + '-' + product.code_1c, :permalink => 'temporarily-' + ind.to_s + '-' + product.code_1c, :code_1c => analog.text, :deleted_at => nil, :price => 0)
+          analog_product.save(:validate => false)
         end
+        product.products << analog_product
     end
 end
 
@@ -486,7 +488,7 @@ def parse_autos(xml_autos, detail)
 
     xml_autos.each do |xml_auto|
         engine = xml_auto.css("ДВИГАТЕЛЬ")
-        auto = Spre::CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
+        auto = Spree::CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
 
 
         detail.car_modifications << auto
