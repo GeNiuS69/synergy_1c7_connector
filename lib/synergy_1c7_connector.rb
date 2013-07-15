@@ -41,7 +41,7 @@ module Synergy1c7Connector
                 product.save
 
                 parse_analogs(product,detail.css("АНАЛОГИ"))
-                #TODO:Original numbers
+                parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
 
             end
             File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -480,6 +480,15 @@ def parse_analogs(product,xml_analogs)
         product.products << analog_product
     end
 end
+
+def parse_original_numbers(product,xml_original_numbers)
+    xml_original_numbers.css("НОМЕР").each do |number|
+        number = Spree::OriginalNumber.create(:number => number.text, :model => number.attributes["МАРКА"].text)
+        product.original_numbers << number
+    end
+end
+
+
 
 def parse_autos(xml_autos, detail)
     arg_lev_1 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_1").first.text
