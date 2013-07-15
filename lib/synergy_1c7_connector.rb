@@ -74,7 +74,7 @@ module Synergy1c7Connector
                 parent = taxon.id
 
                 agr_levels.each do |agr_lev|
-                  taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => arg_lev_to_url + '-' + car.id.to_s).first_or_create
+                  taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => arg_lev.to_url + '-' + car.id.to_s).first_or_create
                   parent = taxon.id
                 end
 
