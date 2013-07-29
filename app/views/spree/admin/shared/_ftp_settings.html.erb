@@ -1,0 +1,15 @@
+<fieldset class="security no-border-bottom">
+  <legend align="center"><%= Spree.t(:ftp_settings) %></legend>
+<div class="field">
+  <%= label_tag :ftp_host, Spree.t(:ftp_host) %><br>
+  <%= text_field_tag :ftp_host, Spree::Config[:ftp_host] %>
+</div>
+<div class="field">
+  <%= label_tag :ftp_login, Spree.t(:ftp_login) %><br>
+  <%= text_field_tag :ftp_login, Spree::Config[:ftp_login] %>
+</div>
+<div class="field">
+  <%= label_tag :ftp_password, Spree.t(:ftp_password) %><br>
+  <%= password_field_tag :ftp_password, Spree::Config[:ftp_password] %>
+</div>
+</fieldset>

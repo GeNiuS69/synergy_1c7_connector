@@ -16,3 +16,9 @@ ru:
   no_selected_file: "Не выбран файл для загрузки"
   successful_1c_import: "Импорт товаров успешно выполнен"
   succesful_1c_discharge: "Выгрузка заказа прошла успешно"
+
+  spree:
+    ftp_settings: Настройки FTP
+    ftp_host: Сервер
+    ftp_login: Имя пользователя
+    ftp_password: Пароль
