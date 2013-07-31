@@ -135,7 +135,7 @@ module Synergy1c7Connector
 
     def parse_original_numbers(product,xml_original_numbers)
       xml_original_numbers.css("НОМЕР").each do |number|
-        number = Spree::OriginalNumber.create(:number => number.text, :model => number.attributes["МАРКА"].nil? ? "" : number.attributes["МАРКА"].text)
+        number = Spree::OriginalNumber.where(:number => number.text, :model => number.attributes["МАРКА"].nil? ? "" : number.attributes["МАРКА"].text).first_or_create
         unless product.original_numbers.find_by_id(number.id)
           product.original_numbers << number
         end
@@ -145,9 +145,6 @@ module Synergy1c7Connector
 
 
     def parse_autos(xml_autos, detail)
-      arg_lev_1 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_1").first.text
-      arg_lev_2 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_2").first.text
-      arg_lev_3 = detail.css("АГРЕГАТНЫЙ_УРОВЕНЬ_3").first.text
 
       xml_autos.each do |xml_auto|
         engine = xml_auto.css("ДВИГАТЕЛЬ")
