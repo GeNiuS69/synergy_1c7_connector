@@ -127,7 +127,7 @@ module Synergy1c7Connector
           analog_product = Spree::Product.new(:name => 'temporarily-' + ind.to_s + '-' + product.code_1c, :permalink => 'temporarily-' + ind.to_s + '-' + product.code_1c, :code_1c => analog.text, :deleted_at => nil, :price => 0)
           analog_product.save(:validate => false)
         end
-        unless product.products.find(analog_product.id)
+        unless product.products.find_by_id(analog_product.id)
           product.products << analog_product
         end
       end
@@ -136,7 +136,7 @@ module Synergy1c7Connector
     def parse_original_numbers(product,xml_original_numbers)
       xml_original_numbers.css("НОМЕР").each do |number|
         number = Spree::OriginalNumber.create(:number => number.text, :model => number.attributes["МАРКА"].nil? ? "" : number.attributes["МАРКА"].text)
-        unless product.original_numbers.find(number.id)
+        unless product.original_numbers.find_by_id(number.id)
           product.original_numbers << number
         end
       end
