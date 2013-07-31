@@ -133,7 +133,7 @@ module Synergy1c7Connector
 
     def parse_original_numbers(product,xml_original_numbers)
       xml_original_numbers.css("НОМЕР").each do |number|
-        number = Spree::OriginalNumber.create(:number => number.text, :model => number.attributes["МАРКА"].text)
+        number = Spree::OriginalNumber.create(:number => number.text, :model => number.attributes["МАРКА"].nil? ? "" : number.attributes["МАРКА"].text)
         product.original_numbers << number
       end
     end
