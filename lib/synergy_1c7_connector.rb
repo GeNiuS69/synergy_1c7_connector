@@ -61,35 +61,35 @@ module Synergy1c7Connector
 
     def parse_xls(filename)
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
 
-      table = xls.get_table(["марка","модель","модификация","год начала выпуска","год окончания выпуска","мощность, кВт","мощность, Л.с.","объем двигателя","топливо","тип кузова", "код двигателя"])
+      detail = Spree::Product.find_by_code_1c(table["код"].first.to_s)
+      if detail
+        agr_levels = table["агрегатный уровень"].first.split(/[\\\/]/)
 
-      detail = Spree::Product.find_by_code_1c(table["код 1С"].first.to_s)
+        table[:table].each do |auto|
+          unless auto.empty?
+            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? '' : Date.strptime(auto["окончания выпуска"],'%Y.%m')).first_or_create
+            detail.car_modifications << car
+            detail.update_attributes(:name => table["наименование"])
 
-      agr_levels = table["агрегатная сборочна группа по уровням"].first.split('; ')
+            if car.taxonomy_id.nil?
+              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+              car.update_attributes(:taxonomy_id => taxonomy.id)
+            end
 
-      table[:table].each do |auto|
-        unless auto.empty?
-          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"],:engine_model => auto["код двигателя"].to_s, :engine_displacement => auto["объем двигателя"], :engine_type => auto["топливо"], :hoursepower => auto["мощность, Л.с."], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["год начала выпуска"],'%Y.%m'), :end_production => Date.strptime(auto["год окончания выпуска"],'%Y.%m')).first_or_create
-          detail.car_modifications << car
-          detail.update_attributes(:name => table["Наименование"])
+            taxons = car.taxonomy.taxons
 
-          if car.taxonomy_id.nil?
-            taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
-            car.update_attributes(:taxonomy_id => taxonomy.id)
-          end
-
-          taxons = car.taxonomy.taxons
-
-          taxon = taxons.where('parent_id IS ?',nil).first
-          parent = taxon.id
-
-          agr_levels.each do |agr_lev|
-            taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
+            taxon = taxons.where('parent_id IS ?',nil).first
             parent = taxon.id
-          end
 
-          taxon.products << detail
+            agr_levels.each do |agr_lev|
+              taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
+              parent = taxon.id
+            end
+
+            taxon.products << detail
+          end
         end
       end
 

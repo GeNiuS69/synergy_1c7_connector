@@ -1,11 +1,10 @@
 <%= render :partial => 'spree/admin/shared/configuration_menu' %>
-
-<h1><%= t(:one_c7_connector) %></h1>
+<% content_for :page_title do %>
+  <%= t(:one_c7_connector) %>
+<% end %>
 
 <%= form_tag admin_one_c7_connector_path, :multipart => true do %>
-  <fieldset class="security no-border-bottom">
     <p class="form-buttons filter-actions actions">
       <%= button t(:import) %>
     </p>
-  </fieldset>
 <% end %>
