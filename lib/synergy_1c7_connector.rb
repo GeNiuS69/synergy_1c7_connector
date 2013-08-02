@@ -52,12 +52,9 @@ module Synergy1c7Connector
         product.price = detail.css("ЦЕНА").first.text.to_d
         #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
         #product.deleted_at = nil
-        ########################
-        product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
-        ########################
         #product.available_on = Time.now
         product.save(:validate => false)
-
+        product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
         #parse_analogs(product,detail.css("АНАЛОГИ"))
         #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
 
