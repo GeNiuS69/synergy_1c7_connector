@@ -53,7 +53,7 @@ module Synergy1c7Connector
         #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
         #product.deleted_at = nil
         ########################
-        product.stock_items.first.update_attribute(:count_on_hand,detail.css("КОЛИЧЕСТВО").first.text.to_i)
+        product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
         ########################
         #product.available_on = Time.now
         product.save
