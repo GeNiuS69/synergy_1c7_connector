@@ -56,7 +56,7 @@ module Synergy1c7Connector
         product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
         ########################
         #product.available_on = Time.now
-        product.save
+        product.save(:validate => false)
 
         #parse_analogs(product,detail.css("АНАЛОГИ"))
         #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
