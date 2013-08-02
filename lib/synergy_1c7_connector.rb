@@ -36,65 +36,81 @@ module Synergy1c7Connector
     end
     def parse_xml(filename)
       set_product_price
-      puts 'Start parse xml!'
+      puts 'Begin parse XML: ' + filename
       xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
       # Parsing
       details = xml.css("ДЕТАЛЬ")
       details.each do |detail|
 
         product = Spree::Product.where(:code_1c => detail.css("КОД").first.text).first_or_initialize
-        product.name = detail.css("НАЗВАНИЕ").first.text
-        product.sku = detail.css("АРТИКУЛ").first.text
+        product.name ||= detail.css("КОД").first.text
+        product.permalink ||= detail.css("КОД").first.text
+
+        #product.name = detail.css("НАЗВАНИЕ").first.text
+        #product.sku = detail.css("АРТИКУЛ").first.text
         product.price = detail.css("ЦЕНА").first.text.to_d
-        product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
-        product.deleted_at = nil
-        product.available_on = Time.now
+        #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
+        #product.deleted_at = nil
+        ########################
+        product.stock_items.first.update_attribute(:count_on_hand,detail.css("КОЛИЧЕСТВО").first.text.to_i)
+        ########################
+        #product.available_on = Time.now
         product.save
 
-        parse_analogs(product,detail.css("АНАЛОГИ"))
-        parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
+        #parse_analogs(product,detail.css("АНАЛОГИ"))
+        #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
 
       end
       File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse XML: " + filename
     end
 
 
     def parse_xls(filename)
+      puts "Begin parse XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
 
-      detail = Spree::Product.find_by_code_1c(table["код"].first.to_s)
-      if detail
-        agr_levels = table["агрегатный уровень"].first.split(/[\\\/]/)
+      detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
+      detail.name = table["наименование"].first
+      detail.permalink = table["наименование"].first.to_url
+      detail.sku = table["артикул"].first
+      detail.price ||= 0
+      detail.available_on = Time.now
+      detail.save
 
-        table[:table].each do |auto|
-          unless auto.empty?
-            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? '' : Date.strptime(auto["окончания выпуска"],'%Y.%m')).first_or_create
-            detail.car_modifications << car
-            detail.update_attributes(:name => table["наименование"])
+      parse_original_numbers(detail,table["ориг. номера"])
+      parse_analogs(detail,table["код аналога"])
 
-            if car.taxonomy_id.nil?
-              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
-              car.update_attributes(:taxonomy_id => taxonomy.id)
-            end
+      agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
 
-            taxons = car.taxonomy.taxons
+      table[:table].each do |auto|
+        unless auto.empty?
+          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('- ') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
 
-            taxon = taxons.where('parent_id IS ?',nil).first
-            parent = taxon.id
-
-            agr_levels.each do |agr_lev|
-              taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
-              parent = taxon.id
-            end
-
-            taxon.products << detail
+          detail.car_modifications << car
+          if car.taxonomy_id.nil?
+            taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+            car.update_attributes(:taxonomy_id => taxonomy.id)
           end
+
+          taxons = car.taxonomy.taxons
+
+          taxon = taxons.where('parent_id IS ?',nil).first
+          parent = taxon.id
+
+          agr_levels.each do |agr_lev|
+            taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
+            parent = taxon.id
+          end
+
+          taxon.products << detail
         end
       end
 
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse XLSX: " + filename
     end
 
     def set_product_price
@@ -120,11 +136,11 @@ module Synergy1c7Connector
 
 
 
-    def parse_analogs(product,xml_analogs)
-      xml_analogs.css("КОД").each_with_index do |analog,ind|
-        analog_product = Spree::Product.find_by_code_1c(analog.text)
+    def parse_analogs(product,analogs)
+      analogs.each_with_index do |analog,ind|
+        analog_product = Spree::Product.find_by_code_1c(analog.to_s)
         if analog_product.nil?
-          analog_product = Spree::Product.new(:name => 'temporarily-' + ind.to_s + '-' + product.code_1c, :permalink => 'temporarily-' + ind.to_s + '-' + product.code_1c, :code_1c => analog.text, :deleted_at => nil, :price => 0)
+          analog_product = Spree::Product.new(:name => 'temporarily-' + ind.to_s + '-' + product.code_1c, :permalink => 'temporarily-' + ind.to_s + '-' + product.code_1c, :code_1c => analog.to_s, :deleted_at => nil, :price => 0)
           analog_product.save(:validate => false)
         end
         unless product.products.find_by_id(analog_product.id)
@@ -133,33 +149,14 @@ module Synergy1c7Connector
       end
     end
 
-    def parse_original_numbers(product,xml_original_numbers)
-      xml_original_numbers.css("НОМЕР").each do |number|
-        number = Spree::OriginalNumber.where(:number => number.text, :model => number.attributes["МАРКА"].nil? ? "" : number.attributes["МАРКА"].text).first_or_create
+    def parse_original_numbers(product,originals)
+      originals.each do |number|
+        number = Spree::OriginalNumber.where(:number => number.to_s).first_or_create
         unless product.original_numbers.find_by_id(number.id)
           product.original_numbers << number
         end
       end
     end
 
-
-
-    def parse_autos(xml_autos, detail)
-
-      xml_autos.each do |xml_auto|
-        engine = xml_auto.css("ДВИГАТЕЛЬ")
-        auto = Spree::CarMaker.find_or_create_by_name(xml_auto.css("МАРКА").first.text).car_models.find_or_create_by_name(xml_auto.css("МОДЕЛЬ").first.text).car_modifications.where(:engine_model => engine.css("МОДЕЛЬ").first.text, :engine_displacement => engine.css("ОБЪЕМ").first.text, :engine_type => engine.css("ТОПЛИВО").first.css, :hoursepower => engine.css("МОЩНОСТЬ_ЛС").first.text, :body_style => xml_auto.css("КУЗОВ").first.text, :start_production => Date.strptime(xml_auto.css('ДАТА_НАЧАЛА_ПРОИЗВОДСТВА').first.text,'%Y.%m'), :end_production => Date.strptime(xml_auto.css('ДАТА_ОКОНЧАНИЯ_ПРОИЗВОДСТВА').first.text,'%Y.%m') ).first_or_create
-
-
-        detail.car_modifications << auto
-        taxons = auto.taxonomy.taxons
-        taxon1 = taxons.where(:parent_id => taxons.first.id, :name => agr_lev_1).first_or_create
-        taxon2 = taxons.where(:parent_id => taxon1.id, :name => agr_lev_2 ).first_or_create
-        taxon3 = taxons.where(:parent_id => taxon2.id, :name => agr_lev_3 ).first_or_create
-        taxon3.products << detail
-
-
-      end
-    end
   end
 end
