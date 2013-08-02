@@ -42,9 +42,10 @@ module Synergy1c7Connector
       details = xml.css("ДЕТАЛЬ")
       details.each do |detail|
 
-        product = Spree::Product.where(:code_1c => detail.css("КОД").first.text).first_or_initialize
-        product.name ||= detail.css("КОД").first.text
-        product.permalink ||= detail.css("КОД").first.text
+        code_1c = detail.css("КОД").first.text
+        product = Spree::Product.where(:code_1c => code_1c).first_or_initialize
+        product.name ||= code_1c
+        product.permalink ||= code_1c
 
         #product.name = detail.css("НАЗВАНИЕ").first.text
         #product.sku = detail.css("АРТИКУЛ").first.text
