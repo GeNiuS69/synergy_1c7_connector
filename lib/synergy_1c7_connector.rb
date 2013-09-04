@@ -94,7 +94,7 @@ module Synergy1c7Connector
         agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
       else
         agr_levels = []
-      end]
+      end
 
       table[:table].each do |auto|
         unless auto.empty?
