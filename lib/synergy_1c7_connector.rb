@@ -94,7 +94,7 @@ module Synergy1c7Connector
 
       table[:table].each do |auto|
         unless auto.empty?
-          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('- ') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
+          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
 
           detail.car_modifications << car
           if car.taxonomy_id.nil?
