@@ -90,7 +90,11 @@ module Synergy1c7Connector
       parse_original_numbers(detail,table["ориг. номера"])
       parse_analogs(detail,table["код аналога"])
 
-      agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
+      if table["агрегатный уровень"]
+        agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
+      else
+        agr_levels = []
+      end]
 
       table[:table].each do |auto|
         unless auto.empty?
