@@ -82,7 +82,7 @@ module Synergy1c7Connector
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
       detail.name = table["наименование"].first
       detail.permalink = table["наименование"].first.to_url
-      detail.sku = table["артикул"].first
+      detail.sku = table["артикул"].first || ''
       detail.price ||= 0
       detail.available_on = Time.now
       detail.save
