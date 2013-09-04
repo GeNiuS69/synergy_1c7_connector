@@ -67,6 +67,16 @@ module Synergy1c7Connector
     def parse_xls(filename)
       puts "Begin parse XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      if xls.sheet_data[0].compact.empty?
+        xls.delete_row(0)
+      end
+      if xls.sheet_data[1].compact.empty?
+        xls.delete_row(1)
+      end
+      if xls.sheet_data[2].compact.empty?
+        xls.delete_row(2)
+      end
+
       table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
 
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
