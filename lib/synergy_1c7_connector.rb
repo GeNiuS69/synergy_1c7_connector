@@ -120,13 +120,13 @@ module Synergy1c7Connector
         end
       end
 
-      global_tax = Spree::Taxonomy.find_or_create_by_name("aggregate")
+      global_tax = Spree::Taxonomy.find_or_create_by_name("items")
       global_taxons = global_tax.taxons
       global_taxon = global_taxons.where('parent_id IS ?',nil).first
       global_parent = global_taxon.id
 
       agr_levels.each do |agr_lev|
-          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => 'Global-' + agr_lev.to_url).first_or_create
+          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => 'items-' + agr_lev.to_url).first_or_create
           global_parent = global_taxon.id
       end
       
