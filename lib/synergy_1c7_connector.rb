@@ -79,7 +79,6 @@ module Synergy1c7Connector
 
       table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
 
-      global_tax = Spree::Taxonomy.find_or_create_by_name("aggregate")
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
       detail.name = table["наименование"].first
       detail.permalink = table["наименование"].first.to_url
@@ -109,27 +108,34 @@ module Synergy1c7Connector
           end
 
           taxons = car.taxonomy.taxons
-          global_taxons = global_tax.taxons
           taxon = taxons.where('parent_id IS ?',nil).first
-          global_taxon = taxons.where('parent_id IS ?',nil).first
           parent = taxon.id
-          global_parent = global_taxon.id
 
           agr_levels.each do |agr_lev|
             taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
-            global_taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => 'Global-' + agr_lev.to_url).first_or_create
             
             parent = taxon.id
-            global_parent = global_taxon.id
           end
 
           taxon.products << detail
-          global_taxon.products << detail
         end
       end
 
-      taxons = global_tax.taxons
-      debugger
+      global_tax = Spree::Taxonomy.find_or_create_by_name("aggregate")
+
+
+      agr_levels.each do |agr_level|
+          global_taxons = global_tax.taxons
+          global_taxon = global_taxons.where('parent_id IS ?',nil).first
+          global_parent = global_taxon.id
+          global_taxon = global_taxons.where(:parent_id => parent, :name => agr_lev, :permalink => 'Global-' + agr_lev.to_url).first_or_create
+          global_parent = global_taxon.id
+      end
+      global_taxon.products << detail
+
+
+
+
 
 
 
