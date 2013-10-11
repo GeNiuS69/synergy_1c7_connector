@@ -138,7 +138,7 @@ module Synergy1c7Connector
           global_parent = global_taxon.id
       end
       
-
+      global_taxon.products << detail
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse XLSX: " + filename
