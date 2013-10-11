@@ -121,7 +121,7 @@ module Synergy1c7Connector
       end
 
 
-      global_taxonomy = Spree::Taxonomy.find_or_create_by_name("items")
+      global_taxonomy = Spree::Taxonomy.find_or_create_by_name("Аггрегатный уровень")
       global_taxons = global_taxonomy.taxons
       global_taxon = global_taxons.where('parent_id IS ?',nil).first
       root_taxon_id = global_taxon.id
