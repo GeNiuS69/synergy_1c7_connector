@@ -129,7 +129,7 @@ module Synergy1c7Connector
 
       agr_levels.each do |agr_lev|
           if global_parent == root_taxon_id
-            temp_permalink = global_taxonomy.name + '/' + agr_lev.to_url
+            temp_permalink = global_taxonomy.name.to_url + '/' + agr_lev.to_url
            else
             temp_permalink = global_taxon.permalink + '/' + agr_lev.to_url
            end
