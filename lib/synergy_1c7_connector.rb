@@ -120,17 +120,24 @@ module Synergy1c7Connector
         end
       end
 
-      global_tax = Spree::Taxonomy.find_or_create_by_name("items")
-      global_taxons = global_tax.taxons
+
+      global_taxonomy = Spree::Taxonomy.find_or_create_by_name("items")
+      global_taxons = global_taxonomy.taxons
       global_taxon = global_taxons.where('parent_id IS ?',nil).first
+      root_taxon_id = global_taxon.id
       global_parent = global_taxon.id
 
       agr_levels.each do |agr_lev|
-          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => 'items-' + agr_lev.to_url).first_or_create
+          if global_parent == root_taxon_id
+            temp_permalink = global_taxonomy.name + '/' + agr_lev.to_url
+           else
+            temp_permalink = global_taxon.permalink + '/' + agr_lev.to_url
+           end
+
+          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => temp_permalink).first_or_create
           global_parent = global_taxon.id
       end
       
-      global_taxon.products << detail
 
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
