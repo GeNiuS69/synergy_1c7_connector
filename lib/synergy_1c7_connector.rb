@@ -4,6 +4,10 @@ require 'spree_core'
 module Synergy1c7Connector
   class Engine < Rails::Engine
 
+
+
+    uploads_root = 
+
     config.autoload_paths += %W(#{config.root}/lib)
 
     def self.activate
@@ -16,25 +20,93 @@ module Synergy1c7Connector
   end
 
   class Connection
+
     def parse_with_ftp_copy
       FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
-      files = Dir.glob('*.xml')
-      files.each do |file|
-        self.parse_xml(file)
+      # files = Dir.glob('*.xml')
+      # files.each do |file|
+      #   self.parse_xml(file)
+      # end
+
+      details = Dir.glob('details/**.xlsx')
+      oils = Dir.glob("oils/**.xlsx")
+
+      details.each do |file|
+        self.parse_detail(file)
       end
 
-      files = Dir.glob('*.xlsx')
-      files.each do |file|
-        self.parse_xls(file)
+      oils.each do |file|
+        self.parse_oil(file)
       end
 
     end
+
     def initialize
       @xml_string = ""
     end
-    def parse_xml(filename)
+
+
+    ########################Parsers################################
+
+
+    def parse_detail(filename)
+
+      puts "Begin parse details XLSX: " + filename
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      if xls.sheet_data[0].compact.empty?
+        xls.delete_row(0)
+      end
+      if xls.sheet_data[1].compact.empty?
+        xls.delete_row(1)
+      end
+      if xls.sheet_data[2].compact.empty?
+        xls.delete_row(2)
+      end
+
+      table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
+
+      detail = init_detail(table)
+
+      parse_original_numbers(detail,table["ориг. номера"])
+      parse_analogs(detail,table["код аналога"])
+
+      if table["агрегатный уровень"].first
+        agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
+      else
+        agr_levels = []
+      end
+
+      parse_agr_levels(detail, agr_levels, table)
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse details XLSX: " + filename
+    end
+
+    def parse_oil(filename)
+      puts "Begin parse oils XLSX: " + filename
+
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","аналог","оригинальный номер", "тип","производитель","состав","вязкость","объем,л"])
+     
+      oil = self.init_detail(table)
+      parse_original_numbers(oil, table["оригинальный номер"])
+      parse_analogs(oil, table["аналог"])
+
+      maker = table["производитель"].first
+      agip = table["вязкость"].first
+      taxon_type_name = oil_type_taxon(table["тип"].first)
+
+      get_oil_agr_levels(oil, maker, agip, taxon_type_name)
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse oils XLSX: " + filename
+
+    end 
+
+
+  def parse_xml(filename)
       set_product_price
       puts 'Begin parse XML: ' + filename
       xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
@@ -64,96 +136,6 @@ module Synergy1c7Connector
     end
 
 
-    def parse_xls(filename)
-      puts "Begin parse XLSX: " + filename
-      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      if xls.sheet_data[0].compact.empty?
-        xls.delete_row(0)
-      end
-      if xls.sheet_data[1].compact.empty?
-        xls.delete_row(1)
-      end
-      if xls.sheet_data[2].compact.empty?
-        xls.delete_row(2)
-      end
-
-      table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
-
-      detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
-      detail.name = table["наименование"].first
-      detail.permalink = table["наименование"].first.to_url
-      detail.sku = table["артикул"].first || ''
-      detail.price ||= 0
-      detail.available_on = Time.now
-      detail.save
-
-      parse_original_numbers(detail,table["ориг. номера"])
-      parse_analogs(detail,table["код аналога"])
-
-      if table["агрегатный уровень"].first
-        agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
-      else
-        agr_levels = []
-      end
-
-      table[:table].each do |auto|
-
-        unless auto.empty?
-          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
-
-          detail.car_modifications << car
-          if car.taxonomy_id.nil?
-            taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
-            car.update_attributes(:taxonomy_id => taxonomy.id)
-          end
-
-          taxons = car.taxonomy.taxons
-          taxon = taxons.where('parent_id IS ?',nil).first
-          parent = taxon.id
-
-          agr_levels.each do |agr_lev|
-            taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
-            parent = taxon.id
-          end
-
-          taxon.products << detail
-        end
-      end
-
-      global_tax = Spree::Taxonomy.find_or_create_by_name("aggregate")
-      global_taxons = global_tax.taxons
-      global_taxon = global_taxons.where('parent_id IS ?',nil).first
-      global_parent = global_taxon.id
-
-      agr_levels.each do |agr_lev|
-          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => 'Global-' + agr_lev.to_url).first_or_create
-          global_parent = global_taxon.id
-      end
-      
-      global_taxon.products << detail
-
-
-      File.delete("#{Rails.root}/public/uploads/#{filename}")
-      puts "End parse XLSX: " + filename
-    end
-
-    def set_product_price
-      Spree::Product.all.each do |product|
-        unless product.variants.blank?
-          price = 0
-          cost_price = 0
-          product.variants.each do |var|
-            price = var.price if var.price.to_i != 0
-            cost_price = var.cost_price if var.cost_price.to_i != 0
-          end
-          product.price = price
-          product.cost_price = cost_price
-          product.save
-        end
-      end
-    end
-
-
 
 
     ########################Autoshop################################
@@ -178,6 +160,114 @@ module Synergy1c7Connector
         number = Spree::OriginalNumber.where(:number => number.to_s).first_or_create
         unless product.original_numbers.find_by_id(number.id)
           product.original_numbers << number
+        end
+      end
+    end
+
+    def parse_agr_levels(detail, agr_levels, table)
+      table[:table].each do |auto|
+        unless auto.empty?
+          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
+
+          detail.car_modifications << car
+          if car.taxonomy_id.nil?
+            taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+            car.update_attributes(:taxonomy_id => taxonomy.id)
+          end
+
+          taxons = car.taxonomy.taxons
+          taxon = taxons.where('parent_id IS ?',nil).first
+          parent = taxon.id
+
+          agr_levels.each do |agr_lev|
+            taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
+            parent = taxon.id
+          end
+
+          taxon.products << detail
+        end
+      end
+
+      global_taxonomy = Spree::Taxonomy.find_or_create_by_name("Аггрегатный уровень")
+      global_taxons = global_taxonomy.taxons
+      global_taxon = global_taxons.where('parent_id IS ?',nil).first
+      root_taxon_id = global_taxon.id
+      global_parent = global_taxon.id
+
+      agr_levels.each do |agr_lev|
+          if global_parent == root_taxon_id
+            temp_permalink = global_taxonomy.name.to_url + '/' + agr_lev.to_url
+           else
+            temp_permalink = global_taxon.permalink + '/' + agr_lev.to_url
+           end
+
+          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => temp_permalink).first_or_create
+          global_parent = global_taxon.id
+      end
+      
+      global_taxon.products << detail
+    end
+
+    def oil_type_taxon(cell)
+      case cell
+        when "моторное"
+          return "Моторные масла"
+        when "трансмиссионное"
+          return "Трансмиссионные масла"
+        when "тосол"
+          return "Тосол"
+        when "антифриз"
+          return "Антифриз"
+        else "стеклоомывающая жидкость"
+          return "Стеклоомывающая жидкость"
+      end
+    end
+
+    def get_oil_agr_levels(oil, maker, agip, taxon_type_name)
+
+      taxonomy = Spree::Taxonomy.find_or_create_by_name("Масла")
+      taxons = taxonomy.taxons
+      root_taxon = taxons.where('parent_id IS ?',nil).first
+
+      taxon = taxons.where(:parent_id => root_taxon, :name => taxon_type_name, :permalink => root_taxon.permalink + '/' + taxon_type_name.to_url).first_or_create
+      parent = taxon
+      
+      taxon = taxons.where(:parent_id => parent.id, :name => maker, :permalink => parent.permalink + '/' + maker.to_url).first_or_create
+      parent = taxon
+      
+      taxon = taxons.where(:parent_id => parent.id, :name => agip, :permalink => parent.permalink + '/' + agip.to_url).first_or_create
+
+      taxon.products << oil
+
+    end  
+
+    def init_detail(table)
+      detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
+      detail.name = table["наименование"].first
+      detail.permalink = table["наименование"].first.to_url
+
+      unless table["артикул"].nil?
+        detail.sku = table["артикул"].first || ''
+      end
+
+      detail.price ||= 0
+      detail.available_on = Time.now
+      detail.save
+      return detail
+    end
+
+    def set_product_price
+      Spree::Product.all.each do |product|
+        unless product.variants.blank?
+          price = 0
+          cost_price = 0
+          product.variants.each do |var|
+            price = var.price if var.price.to_i != 0
+            cost_price = var.cost_price if var.cost_price.to_i != 0
+          end
+          product.price = price
+          product.cost_price = cost_price
+          product.save
         end
       end
     end

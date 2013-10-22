@@ -16,10 +16,19 @@ module FtpSynch
           ftp.delete(file.split.last)
         end
 
-        files = ftp.list('*.xlsx')
-        files.each do |file|
-          ftp.getbinaryfile(file.split.last)
-          ftp.delete(file.split.last)
+        oils = ftp.list('oils/*.xlsx')
+        details = ftp.list('details/*.xlsx')
+
+        Dir.chdir(Rails.root.join('public','uploads', 'oils'))
+        oils.each do |oil|
+          ftp.getbinaryfile(oil.split.last)
+          ftp.delete(oil.split.last)
+        end
+
+        Dir.chdir(Rails.root.join('public','uploads', 'details'))
+        details.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
         end
 
         puts 'End downloading'
