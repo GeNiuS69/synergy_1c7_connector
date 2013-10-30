@@ -22,7 +22,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      FtpSynch::Get.new.try_download
+      # FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
       # files = Dir.glob('*.xml')
@@ -32,6 +32,8 @@ module Synergy1c7Connector
 
       details = Dir.glob('details/**.xlsx')
       oils = Dir.glob("oils/**.xlsx")
+      buses = Dir.glob("bus/**.xlsx")
+      discs = Dir.glob("discs/**.xlsx")
 
       details.each do |file|
         self.parse_detail(file)
@@ -39,6 +41,14 @@ module Synergy1c7Connector
 
       oils.each do |file|
         self.parse_oil(file)
+      end
+
+      buses.each do |file|
+        self.parse_bus(file)
+      end
+
+      discs.each do |file|
+        self.parse_disc(file)
       end
 
     end
@@ -104,6 +114,55 @@ module Synergy1c7Connector
       puts "End parse oils XLSX: " + filename
 
     end 
+
+    def parse_bus(filename)
+      puts "Begin parse bus XLSX: " + filename
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность"])
+
+      bus = self.init_detail(table)
+      parse_original_numbers(bus, table["ориг. номера"])
+
+      parse_analogs(bus, table ["код аналога"])
+
+      width = table["диаметр"].first.to_s
+      height = table["высота"].first.to_s
+      profile = table["профиль"].first.to_s
+      season = table["сезонность"].first
+
+      params = [width, height, profile, season]
+
+      get_taxons("Шины", params, bus)
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse bus XLSX: " + filename
+    end
+
+    def parse_disc(filename)
+      puts "Begin parse disc XLSX: " + filename
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","артикул","код аналога",
+       "оригинальный номер","производитель","тип","диаметр","ширина", "PCD", "вылет (ET)", "ДЦО"])
+
+      disc = self.init_detail(table)
+      parse_original_numbers(disc, table["оригинальный номер"])
+      parse_analogs(disc, table["код аналога"])
+
+      diameter = table["диаметр"].first.to_s
+      width = table["ширина"].first.to_s
+      pcd = table["PCD"].first.to_s
+      et = table["вылет (ET)"].first.to_s
+      dco = table["ДЦО"].first.to_s
+      
+      params = [diameter, width, pcd, et, dco]
+
+      get_taxons("Диски", params, disc)
+
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse disc XLSX: " + filename
+
+    end
 
 
   def parse_xml(filename)
@@ -223,6 +282,25 @@ module Synergy1c7Connector
       end
     end
 
+    def get_taxons(taxonomy_name, params, item)
+      
+      taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
+      taxons = taxonomy.taxons
+      root_taxon = taxons.where('parent_id IS ?',nil).first
+
+      first_level = params.shift
+      taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
+      parent = taxon
+
+      params.each do |param|
+        taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
+        parent = taxon
+      end  
+
+      taxon.products << item
+
+    end
+      
     def get_oil_agr_levels(oil, maker, agip, taxon_type_name)
 
       taxonomy = Spree::Taxonomy.find_or_create_by_name("Масла")
@@ -240,6 +318,43 @@ module Synergy1c7Connector
       taxon.products << oil
 
     end  
+
+    def get_bus_agr_levels(bus, width, height, profile, season) 
+      taxonomy = Spree::Taxonomy.find_or_create_by_name("Шины")
+      taxons = taxonomy.taxons
+      root_taxon = taxons.where('parent_id IS ?', nil).first
+
+      taxon = taxons.where(:parent_id => root_taxon, :name => width, :permalink => root_taxon.permalink + '/' + width.to_url).first_or_create
+      parent = taxon
+
+      if height == ""
+        height = "0"
+      end
+      params = [profile, height, season]
+
+      params.each do |param|
+        taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
+        parent = taxon   
+      end
+
+      taxon.products << bus
+    end
+
+    def parse_disc_agr_levels(disc, params)
+      taxonomy = Spree::Taxonomy.find_or_create_by_name("Диски")
+      taxons = taxonomy.taxons
+      root_taxon = taxons.where('parent_id IS ?', nil).first
+
+      taxon = taxons.where(:parent_id => root_taxon, :name => params[0], :permalink => root_taxon.permalink + '/' + params[0].to_url).first_or_create
+      parent = taxon
+
+      params.each_with_index do |param, index|
+        unless index == 0
+          taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
+          parent = taxon   
+        end
+      end
+    end
 
     def init_detail(table)
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
