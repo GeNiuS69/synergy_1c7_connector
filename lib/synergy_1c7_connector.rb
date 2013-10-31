@@ -34,6 +34,10 @@ module Synergy1c7Connector
       oils = Dir.glob("oils/**.xlsx")
       buses = Dir.glob("bus/**.xlsx")
       discs = Dir.glob("discs/**.xlsx")
+      batteries = Dir.glob("acb/**.xlsx")
+      lambs = Dir.glob("lambs/**.xlsx")
+      instruments = Dir.glob("instruments/**.xlsx")
+
 
       details.each do |file|
         self.parse_detail(file)
@@ -49,6 +53,18 @@ module Synergy1c7Connector
 
       discs.each do |file|
         self.parse_disc(file)
+      end
+
+      batteries.each do |file|
+        self.parse_battery(file)
+      end
+
+      lambs.each do |file|
+        self.parse_lamb(file)
+      end
+
+      instruments.each do |file|
+        self.parse_instrument(file)
       end
 
     end
@@ -104,11 +120,13 @@ module Synergy1c7Connector
       parse_original_numbers(oil, table["оригинальный номер"])
       parse_analogs(oil, table["аналог"])
 
+      taxon_type_name = oil_type_taxon(table["тип"].first)
       maker = table["производитель"].first
       agip = table["вязкость"].first
-      taxon_type_name = oil_type_taxon(table["тип"].first)
 
-      get_oil_agr_levels(oil, maker, agip, taxon_type_name)
+      params = [taxon_type_name, maker, agip]
+
+      get_taxons("Масла", params, oil)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse oils XLSX: " + filename
@@ -126,8 +144,8 @@ module Synergy1c7Connector
       parse_analogs(bus, table ["код аналога"])
 
       width = table["диаметр"].first.to_s
-      height = table["высота"].first.to_s
       profile = table["профиль"].first.to_s
+      height = table["высота"].first.to_s
       season = table["сезонность"].first
 
       params = [width, height, profile, season]
@@ -161,38 +179,133 @@ module Synergy1c7Connector
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse disc XLSX: " + filename
-
     end
 
+    def parse_battery(filename)
+      puts "Begin parse battery XLSX: " + filename
 
-  def parse_xml(filename)
-      set_product_price
-      puts 'Begin parse XML: ' + filename
-      xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
-      # Parsing
-      details = xml.css("ДЕТАЛЬ")
-      details.each do |detail|
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(
+        ["код","наименование","артикул","код аналога",
+          "оригинальный номер","производитель","полярность","емкость","длина",
+            "ширина", "высота", "вес", "Пусковой ток"])
 
-        code_1c = detail.css("КОД").first.text
-        product = Spree::Product.where(:code_1c => code_1c).first_or_initialize
-        product.name ||= code_1c
-        product.permalink ||= code_1c
+      battery = self.init_detail(table)
+      parse_original_numbers(battery, table["оригинальный номер"])
+      parse_analogs(battery, table["код аналога"])
 
-        #product.name = detail.css("НАЗВАНИЕ").first.text
-        #product.sku = detail.css("АРТИКУЛ").first.text
-        product.price = detail.css("ЦЕНА").first.text.to_d
-        #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
-        #product.deleted_at = nil
-        #product.available_on = Time.now
-        product.save(:validate => false)
-        product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
-        #parse_analogs(product,detail.css("АНАЛОГИ"))
-        #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
+      params = [table["емкость"].first.to_s, table["полярность"].first]
 
-      end
+      get_taxons("Аккумаляторные батареи", params, battery)
+
+
+
+      properties = {
+        "емкость" => table["емкость"].first.to_s,
+        "длина" => table["длина"].first.to_s,
+        "ширина" => table["ширина"].first.to_s,
+        "высота" => table["высота"].first.to_s,
+        "вес" => table["вес"].first.to_s
+      }
+
+      self.add_properties(battery, properties)
+
       File.delete("#{Rails.root}/public/uploads/#{filename}")
-      puts "End parse XML: " + filename
+      puts "End parse battery XLSX: " + filename
+
     end
+
+    def parse_lamb(filename)
+      puts "Begin parse lamb XLSX: " + filename
+
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(        
+        ["код","наименование","артикул","код аналога", 
+          "оригинальный номер","производитель","тип1","тип2","V",
+            "W", "Патрон"])
+
+
+      lamb = self.init_detail(table)
+
+      parse_original_numbers(lamb, table["оригинальный номер"])
+      parse_analogs(lamb, table["код аналога"])    
+
+      type2 = table["тип2"].first
+
+      table[:table].each do |table|
+        unless table.empty?        
+          unless table["тип2"].nil?
+            type2 = table["тип2"]
+          end
+          params = [table["тип1"], type2]
+          get_taxons("Лампы", params, lamb)
+        end
+      end
+
+
+
+      properties = {
+        "напряжение" => table["V"].first.to_s,
+        "мощность" => table["W"].first.to_s
+      }
+
+      add_properties(lamb, properties)
+
+      # File.delete("#{Rails.root}/public/uploads/#{filename}")
+      # puts "End parse lamb XLSX: " + filename    
+    end
+
+    def parse_instrument(filename)
+      puts "Begin parse instrument XLSX: " + filename
+
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(        
+        ["код","наименование","артикул","код аналога", 
+          "оригинальный номер","производитель"])
+
+      instrument = init_detail(table)
+
+      parse_original_numbers(instrument, table["оригинальный номер"])
+      parse_analogs(instrument, table["код аналога"])    
+
+      params = xls[1][6].value.split(/[\\]/)
+
+      get_taxons("Инструмент", params, instrument)
+
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse instrument XLSX: " + filename    
+    end
+
+
+    def parse_xml(filename)
+        set_product_price
+        puts 'Begin parse XML: ' + filename
+        xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
+        # Parsing
+        details = xml.css("ДЕТАЛЬ")
+        details.each do |detail|
+
+          code_1c = detail.css("КОД").first.text
+          product = Spree::Product.where(:code_1c => code_1c).first_or_initialize
+          product.name ||= code_1c
+          product.permalink ||= code_1c
+
+          #product.name = detail.css("НАЗВАНИЕ").first.text
+          #product.sku = detail.css("АРТИКУЛ").first.text
+          product.price = detail.css("ЦЕНА").first.text.to_d
+          #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
+          #product.deleted_at = nil
+          #product.available_on = Time.now
+          product.save(:validate => false)
+          product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
+          #parse_analogs(product,detail.css("АНАЛОГИ"))
+          #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
+
+        end
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        puts "End parse XML: " + filename
+      end
 
 
 
@@ -216,8 +329,12 @@ module Synergy1c7Connector
 
     def parse_original_numbers(product,originals)
       originals.each do |number|
+        if(number.to_s.include? "+e")
+            return
+        end
         number = Spree::OriginalNumber.where(:number => number.to_s).first_or_create
         unless product.original_numbers.find_by_id(number.id)
+
           product.original_numbers << number
         end
       end
@@ -267,21 +384,6 @@ module Synergy1c7Connector
       global_taxon.products << detail
     end
 
-    def oil_type_taxon(cell)
-      case cell
-        when "моторное"
-          return "Моторные масла"
-        when "трансмиссионное"
-          return "Трансмиссионные масла"
-        when "тосол"
-          return "Тосол"
-        when "антифриз"
-          return "Антифриз"
-        else "стеклоомывающая жидкость"
-          return "Стеклоомывающая жидкость"
-      end
-    end
-
     def get_taxons(taxonomy_name, params, item)
       
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
@@ -289,73 +391,26 @@ module Synergy1c7Connector
       root_taxon = taxons.where('parent_id IS ?',nil).first
 
       first_level = params.shift
-      taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
-      parent = taxon
+      unless first_level.nil?
+        taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
+        parent = taxon
+      end
 
       params.each do |param|
-        taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
-        parent = taxon
+        unless param.nil?
+          taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
+          parent = taxon
+        end
       end  
 
       taxon.products << item
 
     end
-      
-    def get_oil_agr_levels(oil, maker, agip, taxon_type_name)
 
-      taxonomy = Spree::Taxonomy.find_or_create_by_name("Масла")
-      taxons = taxonomy.taxons
-      root_taxon = taxons.where('parent_id IS ?',nil).first
-
-      taxon = taxons.where(:parent_id => root_taxon, :name => taxon_type_name, :permalink => root_taxon.permalink + '/' + taxon_type_name.to_url).first_or_create
-      parent = taxon
-      
-      taxon = taxons.where(:parent_id => parent.id, :name => maker, :permalink => parent.permalink + '/' + maker.to_url).first_or_create
-      parent = taxon
-      
-      taxon = taxons.where(:parent_id => parent.id, :name => agip, :permalink => parent.permalink + '/' + agip.to_url).first_or_create
-
-      taxon.products << oil
-
-    end  
-
-    def get_bus_agr_levels(bus, width, height, profile, season) 
-      taxonomy = Spree::Taxonomy.find_or_create_by_name("Шины")
-      taxons = taxonomy.taxons
-      root_taxon = taxons.where('parent_id IS ?', nil).first
-
-      taxon = taxons.where(:parent_id => root_taxon, :name => width, :permalink => root_taxon.permalink + '/' + width.to_url).first_or_create
-      parent = taxon
-
-      if height == ""
-        height = "0"
-      end
-      params = [profile, height, season]
-
-      params.each do |param|
-        taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
-        parent = taxon   
-      end
-
-      taxon.products << bus
+    def add_properties(item, properties)
+      properties.each { |key, value| item.set_property(key, value) }
     end
-
-    def parse_disc_agr_levels(disc, params)
-      taxonomy = Spree::Taxonomy.find_or_create_by_name("Диски")
-      taxons = taxonomy.taxons
-      root_taxon = taxons.where('parent_id IS ?', nil).first
-
-      taxon = taxons.where(:parent_id => root_taxon, :name => params[0], :permalink => root_taxon.permalink + '/' + params[0].to_url).first_or_create
-      parent = taxon
-
-      params.each_with_index do |param, index|
-        unless index == 0
-          taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
-          parent = taxon   
-        end
-      end
-    end
-
+      
     def init_detail(table)
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
       detail.name = table["наименование"].first
@@ -384,6 +439,21 @@ module Synergy1c7Connector
           product.cost_price = cost_price
           product.save
         end
+      end
+    end
+
+    def oil_type_taxon(cell)
+      case cell
+        when "моторное"
+          return "Моторные масла"
+        when "трансмиссионное"
+          return "Трансмиссионные масла"
+        when "тосол"
+          return "Тосол"
+        when "антифриз"
+          return "Антифриз"
+        else "стеклоомывающая жидкость"
+          return "Стеклоомывающая жидкость"
       end
     end
 

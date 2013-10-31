@@ -18,6 +18,11 @@ module FtpSynch
 
         oils = ftp.list('oils/*.xlsx')
         details = ftp.list('details/*.xlsx')
+        buses = ftp.list("bus/**.xlsx")
+        discs = ftp.list("discs/**.xlsx")
+        batteries = ftp.list("acb/**.xlsx")
+        lambs = ftp.list("lambs/**.xlsx")
+        instruments = ftp.list("instruments/**.xlsx")
 
         Dir.chdir(Rails.root.join('public','uploads', 'oils'))
         oils.each do |oil|
@@ -27,6 +32,33 @@ module FtpSynch
 
         Dir.chdir(Rails.root.join('public','uploads', 'details'))
         details.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
+        end
+        
+        Dir.chdir(Rails.root.join('public','uploads', 'bus'))
+        buses.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
+        end
+        Dir.chdir(Rails.root.join('public','uploads', 'discs'))
+        discs.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
+        end
+        Dir.chdir(Rails.root.join('public','uploads', 'acb'))
+        batteries.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
+        end
+        Dir.chdir(Rails.root.join('public','uploads', 'lambs'))
+        lambs.each do |detail|
+          ftp.getbinaryfile(detail.split.last)
+          ftp.delete(detail.split.last)
+        end
+        
+        Dir.chdir(Rails.root.join('public','uploads', 'instruments'))
+        instruments.each do |detail|
           ftp.getbinaryfile(detail.split.last)
           ftp.delete(detail.split.last)
         end
