@@ -143,14 +143,15 @@ module Synergy1c7Connector
 
       parse_analogs(bus, table ["код аналога"])
 
+      root = "шины"
       width = table["диаметр"].first.to_s
       profile = table["профиль"].first.to_s
       height = table["высота"].first.to_s
       season = table["сезонность"].first
 
-      params = [width, height, profile, season]
+      params = [root, width, height, profile, season]
 
-      get_taxons("Шины", params, bus)
+      get_taxons("колеса", params, bus)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse bus XLSX: " + filename
@@ -166,15 +167,16 @@ module Synergy1c7Connector
       parse_original_numbers(disc, table["оригинальный номер"])
       parse_analogs(disc, table["код аналога"])
 
+      root = "диски"
       diameter = table["диаметр"].first.to_s
       width = table["ширина"].first.to_s
       pcd = table["PCD"].first.to_s
       et = table["вылет (ET)"].first.to_s
       dco = table["ДЦО"].first.to_s
       
-      params = [diameter, width, pcd, et, dco]
+      params = [root, diameter, width, pcd, et, dco]
 
-      get_taxons("Диски", params, disc)
+      get_taxons("колеса", params, disc)
 
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -251,8 +253,8 @@ module Synergy1c7Connector
 
       add_properties(lamb, properties)
 
-      # File.delete("#{Rails.root}/public/uploads/#{filename}")
-      # puts "End parse lamb XLSX: " + filename    
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse lamb XLSX: " + filename    
     end
 
     def parse_instrument(filename)
