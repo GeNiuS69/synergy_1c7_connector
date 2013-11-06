@@ -37,6 +37,7 @@ module Synergy1c7Connector
       batteries = Dir.glob("acb/**.xlsx")
       lambs = Dir.glob("lambs/**.xlsx")
       instruments = Dir.glob("instruments/**.xlsx")
+      rus = Dir.glob("rus/**.xlsx")
 
 
       details.each do |file|
@@ -65,6 +66,10 @@ module Synergy1c7Connector
 
       instruments.each do |file|
         self.parse_instrument(file)
+      end
+
+      rus.each do |file|
+        self.parse_detail(file)
       end
 
     end
@@ -108,6 +113,7 @@ module Synergy1c7Connector
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
+
     end
 
     def parse_oil(filename)
@@ -279,7 +285,6 @@ module Synergy1c7Connector
       puts "End parse instrument XLSX: " + filename    
     end
 
-
     def parse_xml(filename)
         set_product_price
         puts 'Begin parse XML: ' + filename
@@ -343,13 +348,26 @@ module Synergy1c7Connector
     end
 
     def parse_agr_levels(detail, agr_levels, table)
+
       table[:table].each do |auto|
         unless auto.empty?
-          car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
+          region = maker_country(auto["марка"])
 
+          if region == :eng
+            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
+          else
+            maker = rus_maker_name(auto["марка"])
+            car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
+          end
           detail.car_modifications << car
-          if car.taxonomy_id.nil?
-            taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+
+
+          if car.taxonomy_id.nil? 
+            if region == :eng
+              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+            else
+              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.name}")
+            end
             car.update_attributes(:taxonomy_id => taxonomy.id)
           end
 
@@ -366,24 +384,8 @@ module Synergy1c7Connector
         end
       end
 
-      global_taxonomy = Spree::Taxonomy.find_or_create_by_name("Аггрегатный уровень")
-      global_taxons = global_taxonomy.taxons
-      global_taxon = global_taxons.where('parent_id IS ?',nil).first
-      root_taxon_id = global_taxon.id
-      global_parent = global_taxon.id
-
-      agr_levels.each do |agr_lev|
-          if global_parent == root_taxon_id
-            temp_permalink = global_taxonomy.name.to_url + '/' + agr_lev.to_url
-           else
-            temp_permalink = global_taxon.permalink + '/' + agr_lev.to_url
-           end
-
-          global_taxon = global_taxons.where(:parent_id => global_parent, :name => agr_lev, :permalink => temp_permalink).first_or_create
-          global_parent = global_taxon.id
-      end
-      
-      global_taxon.products << detail
+      puts "getting taxons"
+      get_taxons("Аггрегатный уровень", agr_levels, detail)
     end
 
     def get_taxons(taxonomy_name, params, item)
@@ -457,6 +459,17 @@ module Synergy1c7Connector
         else "стеклоомывающая жидкость"
           return "Стеклоомывающая жидкость"
       end
+    end
+
+    def maker_country(maker)
+      rus = ["камаз", "kamaz", "автоваз", "avtovaz", "lada", "uaz", "уаз",
+              "газ", "gaz", "ваз"]
+      rus.include?(maker.strip.mb_chars.downcase) ? :ru : :eng
+    end
+
+    def rus_maker_name(maker)
+      vaz = ["ваз", "автоваз", "lada"]
+      vaz.include?(maker.strip.mb_chars.downcase) ? "автоваз" : maker
     end
 
   end
