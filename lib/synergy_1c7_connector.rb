@@ -22,7 +22,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      # FtpSynch::Get.new.try_download
+      FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
       # files = Dir.glob('*.xml')
