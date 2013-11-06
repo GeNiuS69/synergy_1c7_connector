@@ -4,8 +4,6 @@ require 'spree_core'
 module Synergy1c7Connector
   class Engine < Rails::Engine
 
-
-
     uploads_root = 
 
     config.autoload_paths += %W(#{config.root}/lib)
@@ -355,7 +353,7 @@ module Synergy1c7Connector
           end
           detail.car_modifications << car
 
-
+          puts "Start getting taxons for modification"
           if car.taxonomy_id.nil? 
             if region == :eng
               taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
@@ -375,11 +373,13 @@ module Synergy1c7Connector
           end
 
           taxon.products << detail
+          puts "End getting taxons for modification"
         end
       end
 
-      puts "getting taxons"
+      puts "Start getting global taxons"
       get_taxons("Аггрегатный уровень", agr_levels, detail)
+      puts "End getting global taxons"
     end
 
     def get_taxons(taxonomy_name, params, item)
