@@ -463,7 +463,7 @@ module Synergy1c7Connector
 
     def rus_maker_name(maker)
       vaz = ["ваз", "автоваз", "lada"]
-      vaz.include?(maker.strip.mb_chars.downcase) ? "автоваз" : maker
+      vaz.include?(maker.strip.mb_chars.downcase) ? "АвтоВаз" : maker
     end
 
   end
