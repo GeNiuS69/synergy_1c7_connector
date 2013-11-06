@@ -37,8 +37,6 @@ module Synergy1c7Connector
       batteries = Dir.glob("acb/**.xlsx")
       lambs = Dir.glob("lambs/**.xlsx")
       instruments = Dir.glob("instruments/**.xlsx")
-      rus = Dir.glob("rus/**.xlsx")
-
 
       details.each do |file|
         self.parse_detail(file)
@@ -66,10 +64,6 @@ module Synergy1c7Connector
 
       instruments.each do |file|
         self.parse_instrument(file)
-      end
-
-      rus.each do |file|
-        self.parse_detail(file)
       end
 
     end
