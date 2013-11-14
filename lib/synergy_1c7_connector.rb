@@ -378,38 +378,11 @@ module Synergy1c7Connector
           end
           detail.car_modifications << car
 
-          # puts Time.now.strftime("%y %m %d %h:%m:%s ") + "Start getting taxons " + car.car_model.car_maker.name + car.name
-          # if car.taxonomy_id.nil? 
-          #   if region == :eng
-          #     taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
-          #   else
-          #     taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.name}")
-          #   end
-          #   car.update_attributes(:taxonomy_id => taxonomy.id)
-          # end
-          
-          # taxons = car.taxonomy.taxons
-          # taxon = taxons.where('pfarent_id IS ?',nil).first
-          # parent = taxon.id
-          
-
-          # puts "Start getting agr levels"
-          # agr_levels.each do |agr_lev|
-          #   taxons_query = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s)
-          #   taxon = taxons_query.first_or_create
-          #   parent = taxon.id
-          # end
-          # puts "End getting agr levels"
-
-
-          # taxon.products << detail
           agr_levels.each do |agr_lev|
             get_taxons("Агрегатный уровень", agr_levels, detail, car)
           end
 
          end 
-         # puts Time.now.strftime("%y %m %d %h:%m:%s ") + "End getting " + car.name
-
       end
 
 
