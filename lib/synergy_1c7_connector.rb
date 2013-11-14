@@ -20,7 +20,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      # FtpSynch::Get.new.try_download
+      FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
       # files = Dir.glob('*.xml')
@@ -37,7 +37,7 @@ module Synergy1c7Connector
       instruments = Dir.glob("instruments/**.xlsx")
 
       details.each do |file|
-        ParserWorker.perform_async(file)
+        self.parse_detail(file)
       end
 
       oils.each do |file|
@@ -94,23 +94,26 @@ module Synergy1c7Connector
 
       detail = init_detail(table)
 
+
+
       parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
 
       # ParserWorker.perform_async(detail, table)
 
-      # parse_agr_levels(detail, table)
-      if table[:table].length > 4
-        tables = table[:table].each_slice(table[:table].length / 4).to_a
-      else
-        tables = Array.new
-        tables << table
-      end
+      parse_agr_levels(detail, table)
+      # if table[:table].length > 4
+      #   tables = table[:table].each_slice(table[:table].length / 4).to_a
+      # else
+      #   tables = Array.new
+      #   tables << table[:table]
+      # end
 
 
-      tables.each do |table|
-        parse_agr_levels(detail, table)
-      end
+      # tables.each do |table|
+      #   parse_agr_levels(detail, table)
+      # end
+
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
@@ -158,7 +161,7 @@ module Synergy1c7Connector
 
       params = [root, width, height, profile, season]
 
-      get_taxons("колеса", params, bus)
+      get_taxons("Колеса", params, bus)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse bus XLSX: " + filename
@@ -183,7 +186,7 @@ module Synergy1c7Connector
       
       params = [root, diameter, width, pcd, et, dco]
 
-      get_taxons("колеса", params, disc)
+      get_taxons("Колеса", params, disc)
 
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -247,6 +250,7 @@ module Synergy1c7Connector
             type2 = table["тип2"]
           end
           params = [table["тип1"], type2]
+          params = params.compact
           get_taxons("Лампы", params, lamb)
         end
       end
@@ -351,32 +355,31 @@ module Synergy1c7Connector
     def parse_agr_levels(detail, table)
       previous_levels = []
 
-      table.each do |auto|
+      table[:table].each do |auto|
          unless auto.empty?
             agr_field = auto["агрегатный уровень"]
             unless agr_field.nil?
               unless agr_field.empty?
-
                 agr_levels = agr_field.split(/[\\]/)
                 previous_levels = agr_levels.dup
 
               end
             else
-              agr_levels = previous_levels
+              agr_levels = previous_levels.dup
             end
 
-          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s
+          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
 
           region = maker_country(auto["марка"])
 
 
           if region == :eng
             car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
-          else
+          elsif region == :rus
             maker = rus_maker_name(auto["марка"])
             car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
           end
-          detail.car_modifications << car
+          detail.car_modifications << car unless region == :none
 
           agr_levels.each do |agr_lev|
             get_taxons("Агрегатный уровень", agr_levels, detail, car)
@@ -427,12 +430,15 @@ module Synergy1c7Connector
       detail.name = table["наименование"].first
       detail.permalink = table["наименование"].first.to_url
 
+
       unless table["артикул"].nil?
         detail.sku = table["артикул"].first || ''
       end
 
+
       detail.price ||= 0
       detail.available_on = Time.now
+
       detail.save
       return detail
     end
@@ -468,10 +474,11 @@ module Synergy1c7Connector
       end
     end
 
-    def maker_country(maker)
+    def maker_country(maker = "eng")
       rus = ["камаз", "kamaz", "автоваз", "avtovaz", "lada", "uaz", "уаз",
               "газ", "gaz", "ваз"]
-      rus.include?(maker.strip.mb_chars.downcase) ? :ru : :eng
+      return rus.include?(maker.strip.mb_chars.downcase) ? :ru : :eng unless maker.nil?
+      :none
     end
 
     def rus_maker_name(maker)
