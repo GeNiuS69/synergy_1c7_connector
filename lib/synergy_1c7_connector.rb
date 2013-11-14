@@ -11,7 +11,7 @@ module Synergy1c7Connector
     def self.activate
       Dir.glob(File.join(File.dirname(__FILE__), "../app/**/*_decorator*.rb")) do |c|
         Rails.env.production? ? require(c) : load(c)
-      end
+      end 
     end
 
     config.to_prepare &method(:activate).to_proc
@@ -20,7 +20,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      FtpSynch::Get.new.try_download
+      # FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
       # files = Dir.glob('*.xml')
@@ -37,7 +37,7 @@ module Synergy1c7Connector
       instruments = Dir.glob("instruments/**.xlsx")
 
       details.each do |file|
-        self.parse_detail(file)
+        ParserWorker.perform_async(file)
       end
 
       oils.each do |file|
@@ -76,7 +76,8 @@ module Synergy1c7Connector
 
     def parse_detail(filename)
 
-      puts "Begin parse details XLSX: " + filename
+      puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Begin parse details XLSX: " + filename
+      
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       if xls.sheet_data[0].compact.empty?
         xls.delete_row(0)
@@ -88,20 +89,28 @@ module Synergy1c7Connector
         xls.delete_row(2)
       end
 
-      table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова"])
+
+      table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова", "агрегатный уровень"])
 
       detail = init_detail(table)
 
-      parse_original_numbers(detail,table["ориг. номера"])
-      parse_analogs(detail,table["код аналога"])
+      parse_original_numbers(detail, table["ориг. номера"])
+      parse_analogs(detail, table["код аналога"])
 
-      if table["агрегатный уровень"].first
-        agr_levels = table["агрегатный уровень"].first.split(/[\\]/)
+      # ParserWorker.perform_async(detail, table)
+
+      # parse_agr_levels(detail, table)
+      if table[:table].length > 4
+        tables = table[:table].each_slice(table[:table].length / 4).to_a
       else
-        agr_levels = []
+        tables = Array.new
+        tables << table
       end
 
-      parse_agr_levels(detail, agr_levels, table)
+
+      tables.each do |table|
+        parse_agr_levels(detail, table)
+      end
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
@@ -339,11 +348,27 @@ module Synergy1c7Connector
       end
     end
 
-    def parse_agr_levels(detail, agr_levels, table)
+    def parse_agr_levels(detail, table)
+      previous_levels = []
 
-      table[:table].each do |auto|
-        unless auto.empty?
+      table.each do |auto|
+         unless auto.empty?
+            agr_field = auto["агрегатный уровень"]
+            unless agr_field.nil?
+              unless agr_field.empty?
+
+                agr_levels = agr_field.split(/[\\]/)
+                previous_levels = agr_levels.dup
+
+              end
+            else
+              agr_levels = previous_levels
+            end
+
+          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s
+
           region = maker_country(auto["марка"])
+
 
           if region == :eng
             car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
@@ -353,36 +378,46 @@ module Synergy1c7Connector
           end
           detail.car_modifications << car
 
-          puts "Start getting taxons for modification"
-          if car.taxonomy_id.nil? 
-            if region == :eng
-              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
-            else
-              taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.name}")
-            end
-            car.update_attributes(:taxonomy_id => taxonomy.id)
-          end
+          # puts Time.now.strftime("%y %m %d %h:%m:%s ") + "Start getting taxons " + car.car_model.car_maker.name + car.name
+          # if car.taxonomy_id.nil? 
+          #   if region == :eng
+          #     taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.car_model.name} #{car.name}")
+          #   else
+          #     taxonomy = Spree::Taxonomy.create(:name => " #{car.car_model.car_maker.name} #{car.name}")
+          #   end
+          #   car.update_attributes(:taxonomy_id => taxonomy.id)
+          # end
+          
+          # taxons = car.taxonomy.taxons
+          # taxon = taxons.where('pfarent_id IS ?',nil).first
+          # parent = taxon.id
+          
 
-          taxons = car.taxonomy.taxons
-          taxon = taxons.where('parent_id IS ?',nil).first
-          parent = taxon.id
+          # puts "Start getting agr levels"
+          # agr_levels.each do |agr_lev|
+          #   taxons_query = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s)
+          #   taxon = taxons_query.first_or_create
+          #   parent = taxon.id
+          # end
+          # puts "End getting agr levels"
 
+
+          # taxon.products << detail
           agr_levels.each do |agr_lev|
-            taxon = taxons.where(:parent_id => parent, :name => agr_lev, :permalink => agr_lev.to_url + '-' + car.id.to_s).first_or_create
-            parent = taxon.id
+            get_taxons("Агрегатный уровень", agr_levels, detail, car)
           end
 
-          taxon.products << detail
-          puts "End getting taxons for modification"
-        end
+         end 
+         # puts Time.now.strftime("%y %m %d %h:%m:%s ") + "End getting " + car.name
+
       end
 
-      puts "Start getting global taxons"
-      get_taxons("Аггрегатный уровень", agr_levels, detail)
-      puts "End getting global taxons"
-    end
 
-    def get_taxons(taxonomy_name, params, item)
+
+     end
+
+    def get_taxons(taxonomy_name, params, item, modification = nil)
+
       
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
@@ -391,18 +426,23 @@ module Synergy1c7Connector
       first_level = params.shift
       unless first_level.nil?
         taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
+
+        taxon.car_modifications << modification unless modification.nil?
         parent = taxon
+
       end
 
       params.each do |param|
         unless param.nil?
           taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
+          taxon.car_modifications << modification unless modification.nil?
           parent = taxon
         end
       end  
 
-      taxon.products << item
 
+      taxon.products << item
+      return taxon
     end
 
     def add_properties(item, properties)
