@@ -354,7 +354,6 @@ module Synergy1c7Connector
 
     def parse_agr_levels(detail, table)
       previous_levels = []
-
       table[:table].each do |auto|
          unless auto.empty?
             agr_field = auto["агрегатный уровень"]
@@ -368,14 +367,14 @@ module Synergy1c7Connector
               agr_levels = previous_levels.dup
             end
 
-          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
 
+          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
           region = maker_country(auto["марка"])
 
 
           if region == :eng
             car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
-          elsif region == :rus
+          elsif region == :ru
             maker = rus_maker_name(auto["марка"])
             car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
           end
