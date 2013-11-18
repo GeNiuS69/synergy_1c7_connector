@@ -77,7 +77,7 @@ module Synergy1c7Connector
     def parse_detail(filename)
 
       puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Begin parse details XLSX: " + filename
-      
+
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       if xls.sheet_data[0].compact.empty?
         xls.delete_row(0)
@@ -89,11 +89,9 @@ module Synergy1c7Connector
         xls.delete_row(2)
       end
 
-
       table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова", "агрегатный уровень"])
 
       detail = init_detail(table)
-
 
 
       parse_original_numbers(detail, table["ориг. номера"])
@@ -371,9 +369,11 @@ module Synergy1c7Connector
           puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
           region = maker_country(auto["марка"])
 
+          start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
+          end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
 
           if region == :eng
-            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => Date.strptime(auto["начало выпуска"],'%Y.%m'), :end_production => auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')).first_or_create
+            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
           elsif region == :ru
             maker = rus_maker_name(auto["марка"])
             car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
