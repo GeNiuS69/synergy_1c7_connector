@@ -366,19 +366,22 @@ module Synergy1c7Connector
             end
 
 
+
           puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
           region = maker_country(auto["марка"])
 
-          start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
-          end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
+          unless region == :none
+            start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
+            end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
 
-          if region == :eng
-            car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
-          elsif region == :ru
-            maker = rus_maker_name(auto["марка"])
-            car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
+            if region == :eng
+              car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
+            elsif region == :ru
+              maker = rus_maker_name(auto["марка"])
+              car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
+            end
+            detail.car_modifications << car 
           end
-          detail.car_modifications << car unless region == :none
 
           agr_levels.each do |agr_lev|
             get_taxons("Агрегатный уровень", agr_levels, detail, car)
