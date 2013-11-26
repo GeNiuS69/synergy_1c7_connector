@@ -20,13 +20,9 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      FtpSynch::Get.new.try_download
+      # FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
-      # files = Dir.glob('*.xml')
-      # files.each do |file|
-      #   self.parse_xml(file)
-      # end
 
       details = Dir.glob('details/**.xlsx')
       oils = Dir.glob("oils/**.xlsx")
@@ -35,6 +31,7 @@ module Synergy1c7Connector
       batteries = Dir.glob("acb/**.xlsx")
       lambs = Dir.glob("lambs/**.xlsx")
       instruments = Dir.glob("instruments/**.xlsx")
+      catalogs = Dir.glob('catalogs/*.xml')
 
       details.each do |file|
         self.parse_detail(file)
@@ -64,7 +61,12 @@ module Synergy1c7Connector
         self.parse_instrument(file)
       end
 
+      catalogs.each do |catalog|
+        self.parse_xml(catalog)
+      end
+
     end
+
 
     def initialize
       @xml_string = ""
@@ -97,21 +99,7 @@ module Synergy1c7Connector
       parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
 
-      # ParserWorker.perform_async(detail, table)
-
       parse_agr_levels(detail, table)
-      # if table[:table].length > 4
-      #   tables = table[:table].each_slice(table[:table].length / 4).to_a
-      # else
-      #   tables = Array.new
-      #   tables << table[:table]
-      # end
-
-
-      # tables.each do |table|
-      #   parse_agr_levels(detail, table)
-      # end
-
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
@@ -206,7 +194,7 @@ module Synergy1c7Connector
 
       params = [table["емкость"].first.to_s, table["полярность"].first]
 
-      get_taxons("Аккумаляторные батареи", params, battery)
+      get_taxons("Аккумуляторные батареи", params, battery)
 
 
 
@@ -240,13 +228,19 @@ module Synergy1c7Connector
       parse_original_numbers(lamb, table["оригинальный номер"])
       parse_analogs(lamb, table["код аналога"])    
 
+
+      if table["тип1"].first.nil?
+        puts "Type 1 is empty!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        puts "End parse lamb XLSX: " + filename    
+        return
+      end
+
       type2 = table["тип2"].first
 
       table[:table].each do |table|
         unless table.empty?        
-          unless table["тип2"].nil?
-            type2 = table["тип2"]
-          end
+          type2 = table["тип2"] unless table["тип2"].nil?
           params = [table["тип1"], type2]
           params = params.compact
           get_taxons("Лампы", params, lamb)
@@ -383,9 +377,7 @@ module Synergy1c7Connector
             detail.car_modifications << car 
           end
 
-          agr_levels.each do |agr_lev|
-            get_taxons("Агрегатный уровень", agr_levels, detail, car)
-          end
+          get_taxons("Агрегатный уровень", agr_levels, detail, car)
 
          end 
       end
@@ -418,9 +410,8 @@ module Synergy1c7Connector
         end
       end  
 
-
       taxon.products << item
-      return taxon
+      taxon
     end
 
     def add_properties(item, properties)
