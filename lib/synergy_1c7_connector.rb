@@ -33,8 +33,8 @@ module Synergy1c7Connector
       instruments = Dir.glob("instruments/**.xlsx")
       catalogs = Dir.glob('catalogs/*.xml')
 
-      details.each do |file|
-        self.parse_detail(file)
+      details.each_with_index do |file, index|
+        self.parse_detail(file, index)
       end
 
       oils.each do |file|
@@ -76,9 +76,9 @@ module Synergy1c7Connector
     ########################Parsers################################
 
 
-    def parse_detail(filename)
+    def parse_detail(filename, index = 0)
 
-      puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Begin parse details XLSX: " + filename
+      puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Begin parse details XLSX: " + filename + " (" + (index+1).to_s + ")" 
 
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       if xls.sheet_data[0].compact.empty?
