@@ -93,6 +93,12 @@ module Synergy1c7Connector
 
       table = xls.get_table(["марка","модель","модификация","начало выпуска","конец выпуска","кВт","л.с.","объем двигателя, л","объем двигателя см3","топливо","тип кузова", "агрегатный уровень"])
 
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
       detail = init_detail(table)
 
 
@@ -112,6 +118,12 @@ module Synergy1c7Connector
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       table = xls.get_table(["код","наименование","аналог","оригинальный номер", "тип","производитель","состав","вязкость","объем,л"])
      
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
       oil = self.init_detail(table)
       parse_original_numbers(oil, table["оригинальный номер"])
       parse_analogs(oil, table["аналог"])
@@ -133,6 +145,13 @@ module Synergy1c7Connector
       puts "Begin parse bus XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность"])
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
 
       bus = self.init_detail(table)
       parse_original_numbers(bus, table["ориг. номера"])
@@ -158,6 +177,12 @@ module Synergy1c7Connector
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
       table = xls.get_table(["код","наименование","артикул","код аналога",
        "оригинальный номер","производитель","тип","диаметр","ширина", "PCD", "вылет (ET)", "ДЦО"])
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
 
       disc = self.init_detail(table)
       parse_original_numbers(disc, table["оригинальный номер"])
@@ -187,6 +212,13 @@ module Synergy1c7Connector
         ["код","наименование","артикул","код аналога",
           "оригинальный номер","производитель","полярность","емкость","длина",
             "ширина", "высота", "вес", "Пусковой ток"])
+
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
 
       battery = self.init_detail(table)
       parse_original_numbers(battery, table["оригинальный номер"])
@@ -221,6 +253,12 @@ module Synergy1c7Connector
         ["код","наименование","артикул","код аналога", 
           "оригинальный номер","производитель","тип1","тип2","V",
             "W", "Патрон"])
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
 
 
       lamb = self.init_detail(table)
@@ -267,6 +305,13 @@ module Synergy1c7Connector
       table = xls.get_table(        
         ["код","наименование","артикул","код аналога", 
           "оригинальный номер","производитель"])
+
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
 
       instrument = init_detail(table)
 
@@ -388,7 +433,11 @@ module Synergy1c7Connector
 
     def get_taxons(taxonomy_name, params, item, modification = nil)
 
-      
+      if params.empty?
+        puts 'No aggregate levels'
+        return
+      end
+
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
       root_taxon = taxons.where('parent_id IS ?',nil).first
