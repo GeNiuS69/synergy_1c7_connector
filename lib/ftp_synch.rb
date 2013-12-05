@@ -23,6 +23,7 @@ module FtpSynch
         batteries = ftp.list("acb/**.xlsx")
         lambs = ftp.list("lambs/**.xlsx")
         instruments = ftp.list("instruments/**.xlsx")
+        catalogs = ftp.list("catalogs/*xml")
 
         Dir.chdir(Rails.root.join('public','uploads', 'oils'))
         oils.each do |oil|
@@ -62,6 +63,13 @@ module FtpSynch
           ftp.getbinaryfile(detail.split.last)
           ftp.delete(detail.split.last)
         end
+
+        Dir.chdir(Rails.root.join('public','uploads', 'catalogs'))
+        catalogs.each do |catalog|
+          ftp.getbinaryfile(catalog.split.last)
+          ftp.delete(catalog.split.last)
+        end
+
 
         puts 'End downloading'
         ftp.close
