@@ -341,7 +341,9 @@ module Synergy1c7Connector
           unless product.nil?
             product.price = detail.css("ЦЕНА").first.text.to_d
             product.save(:validate => false)
-            product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
+            unless product.stock_items.first.nil?
+              product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i) 
+            end
           end
 
           #product.name = detail.css("НАЗВАНИЕ").first.text
