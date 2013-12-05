@@ -101,11 +101,12 @@ module Synergy1c7Connector
 
       detail = init_detail(table)
 
-
       parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
 
       parse_agr_levels(detail, table)
+
+
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
@@ -164,7 +165,7 @@ module Synergy1c7Connector
       height = table["высота"].first.to_s
       season = table["сезонность"].first
 
-      params = [root, width, height, profile, season]
+      params = [root, width, profile, height, season]
 
       get_taxons("Колеса", params, bus)
 
@@ -336,18 +337,18 @@ module Synergy1c7Connector
         details.each do |detail|
 
           code_1c = detail.css("КОД").first.text
-          product = Spree::Product.where(:code_1c => code_1c).first_or_initialize
-          product.name ||= code_1c
-          product.permalink ||= code_1c
+          product = Spree::Product.where(:code_1c => code_1c).first
+          unless product.nil?
+            product.price = detail.css("ЦЕНА").first.text.to_d
+            product.save(:validate => false)
+            product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
+          end
 
           #product.name = detail.css("НАЗВАНИЕ").first.text
           #product.sku = detail.css("АРТИКУЛ").first.text
-          product.price = detail.css("ЦЕНА").first.text.to_d
           #product.permalink = detail.css("АРТИКУЛ").first.text + detail.css("НАЗВАНИЕ").first.text.to_url
           #product.deleted_at = nil
           #product.available_on = Time.now
-          product.save(:validate => false)
-          product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i)
           #parse_analogs(product,detail.css("АНАЛОГИ"))
           #parse_original_numbers(product,detail.css("ОРИГИНАЛЬНЫЕ_НОМЕРА"))
 
@@ -470,6 +471,7 @@ module Synergy1c7Connector
     def init_detail(table)
       detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
       detail.name = table["наименование"].first
+
       detail.permalink = table["наименование"].first.to_url
 
 
@@ -482,7 +484,7 @@ module Synergy1c7Connector
       detail.available_on = Time.now
 
       detail.save
-      return detail
+      detail
     end
 
     def set_product_price
