@@ -141,7 +141,9 @@ module Synergy1c7Connector
       params = params.flatten
 
       params.each_with_index do |param, index|
-        params[index] = param.slice(0,1).mb_chars.capitalize.to_s + param.slice(1..-1)
+        unless param.nil?
+          params[index] = param.slice(0,1).mb_chars.capitalize.to_s + param.slice(1..-1)
+        end
       end
 
       get_taxons("Масла и автокосметика", params, oil)
