@@ -31,6 +31,7 @@ module Synergy1c7Connector
       batteries = Dir.glob("acb/**.xlsx")
       lambs = Dir.glob("lambs/**.xlsx")
       instruments = Dir.glob("instruments/**.xlsx")
+      autocosmetics = Dir.glob('autocosmetics/*.xlsx')
       catalogs = Dir.glob('catalogs/*.xml')
 
       details.each_with_index do |file, index|
@@ -59,6 +60,10 @@ module Synergy1c7Connector
 
       instruments.each do |file|
         self.parse_instrument(file)
+      end
+
+      autocosmetics.each do |file|
+        self.parse_autocosmetic(file)
       end
 
       catalogs.each do |catalog|
@@ -129,18 +134,50 @@ module Synergy1c7Connector
       parse_original_numbers(oil, table["оригинальный номер"])
       parse_analogs(oil, table["аналог"])
 
-      taxon_type_name = oil_type_taxon(table["тип"].first)
+      taxon_type_name = table["тип"].first.split(/[\\]/)
       maker = table["производитель"].first
-      agip = table["вязкость"].first
 
-      params = [taxon_type_name, maker, agip]
+      params = ["Масло", taxon_type_name, maker]
+      params = params.flatten
 
-      get_taxons("Масла", params, oil)
+      params.each_with_index do |param, index|
+        params[index] = param.slice(0,1).mb_chars.capitalize.to_s + param.slice(1..-1)
+      end
+
+      get_taxons("Масла и автокосметика", params, oil)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse oils XLSX: " + filename
 
     end 
+
+    def parse_autocosmetic(filename)
+      puts "Begin parse autocosmetic xlsx: " + filename
+      
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","код аналога","ориг. номера", "производитель","группа"])
+     
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
+      autocosmetic = self.init_detail(table)
+
+      parse_original_numbers(autocosmetic, table["ориг. номера"])
+      parse_analogs(autocosmetic, table["код аналога"])
+
+      group = table["группа"].first
+      maker = table["производитель"].first
+
+      params = ["Автохимия и автокосметика", group, maker]
+
+      get_taxons("Масла и автокосметика", params, autocosmetic)
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse autocosmetics XLSX: " + filename
+    end
 
     def parse_bus(filename)
       puts "Begin parse bus XLSX: " + filename
@@ -417,7 +454,7 @@ module Synergy1c7Connector
             end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
 
             if region == :eng
-              car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя см3"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
+              car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя, л"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
             elsif region == :ru
               maker = rus_maker_name(auto["марка"])
               car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
@@ -425,7 +462,7 @@ module Synergy1c7Connector
             detail.car_modifications << car 
           end
 
-          get_taxons("Агрегатный уровень", agr_levels, detail, car)
+          get_taxons("Сборочная группа", agr_levels, detail, car)
 
          end 
       end

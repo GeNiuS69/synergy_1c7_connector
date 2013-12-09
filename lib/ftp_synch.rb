@@ -23,6 +23,8 @@ module FtpSynch
         batteries = ftp.list("acb/**.xlsx")
         lambs = ftp.list("lambs/**.xlsx")
         instruments = ftp.list("instruments/**.xlsx")
+        autocosmetics = ftp.list("autocosmetics/**.xlsx")
+
         catalogs = ftp.list("catalogs/*xml")
 
         Dir.chdir(Rails.root.join('public','uploads', 'oils'))
@@ -62,6 +64,12 @@ module FtpSynch
         instruments.each do |detail|
           ftp.getbinaryfile(detail.split.last)
           ftp.delete(detail.split.last)
+        end
+
+        Dir.chdir(Rails.root.join('public','uploads', 'autocosmetics'))
+        catalogs.each do |catalog|
+          ftp.getbinaryfile(catalog.split.last)
+          ftp.delete(catalog.split.last)
         end
 
         Dir.chdir(Rails.root.join('public','uploads', 'catalogs'))
