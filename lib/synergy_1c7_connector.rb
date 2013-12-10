@@ -175,6 +175,12 @@ module Synergy1c7Connector
 
       params = ["Автохимия и автокосметика", group, maker]
 
+      params.each_with_index do |param, index|
+        unless param.nil?
+          params[index] = param.slice(0,1).mb_chars.capitalize.to_s + param.slice(1..-1)
+        end
+      end
+
       get_taxons("Масла и автокосметика", params, autocosmetic)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -184,7 +190,7 @@ module Synergy1c7Connector
     def parse_bus(filename)
       puts "Begin parse bus XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность"])
+      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы"])
 
       if table.nil?
         puts "Wrong table format!"
@@ -192,9 +198,13 @@ module Synergy1c7Connector
         return
       end
 
-
       bus = self.init_detail(table)
       parse_original_numbers(bus, table["ориг. номера"])
+
+
+      unless table["шипы"].first.nil?
+        bus.set_property("шипы", "шип.")
+      end
 
       parse_analogs(bus, table ["код аналога"])
 
@@ -205,6 +215,18 @@ module Synergy1c7Connector
       season = table["сезонность"].first
 
       params = [root, width, profile, height, season]
+      if params.any?{|param| param.nil?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+
+        return
+      end
+      if params.any?{|param| param.empty?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
 
       get_taxons("Колеса", params, bus)
 
@@ -236,6 +258,7 @@ module Synergy1c7Connector
       dco = table["ДЦО"].first.to_s
       
       params = [root, diameter, width, pcd, et, dco]
+
 
       get_taxons("Колеса", params, disc)
 
@@ -479,6 +502,7 @@ module Synergy1c7Connector
         puts 'No aggregate levels'
         return
       end
+
 
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
