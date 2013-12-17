@@ -295,11 +295,11 @@ module Synergy1c7Connector
 
 
       properties = {
-        "вес" => table["вес"].first.to_s
+        "вес" => table["вес"].first.to_s,
         "высота" => table["высота"].first.to_s,
         "ширина" => table["ширина"].first.to_s,
         "длина" => table["длина"].first.to_s,
-        "емкость" => table["емкость"].first.to_s,
+        "емкость" => table["емкость"].first.to_s
       }
 
       self.add_properties(battery, properties)
