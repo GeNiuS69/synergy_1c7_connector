@@ -136,6 +136,8 @@ module Synergy1c7Connector
 
       taxon_type_name = table["тип"].first.split(/[\\]/)
 
+
+
       params = ["Масло", taxon_type_name]
       params = params.flatten
 
@@ -145,7 +147,7 @@ module Synergy1c7Connector
         end
       end
 
-      get_taxons("Масла и автокосметика", params, oil)
+      get_taxons("Масла, спецжидкости и автокосметика", params, oil)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse oils XLSX: " + filename
@@ -293,11 +295,11 @@ module Synergy1c7Connector
 
 
       properties = {
-        "емкость" => table["емкость"].first.to_s,
-        "длина" => table["длина"].first.to_s,
-        "ширина" => table["ширина"].first.to_s,
-        "высота" => table["высота"].first.to_s,
         "вес" => table["вес"].first.to_s
+        "высота" => table["высота"].first.to_s,
+        "ширина" => table["ширина"].first.to_s,
+        "длина" => table["длина"].first.to_s,
+        "емкость" => table["емкость"].first.to_s,
       }
 
       self.add_properties(battery, properties)
