@@ -135,9 +135,8 @@ module Synergy1c7Connector
       parse_analogs(oil, table["аналог"])
 
       taxon_type_name = table["тип"].first.split(/[\\]/)
-      maker = table["производитель"].first
 
-      params = ["Масло", taxon_type_name, maker]
+      params = ["Масло", taxon_type_name]
       params = params.flatten
 
       params.each_with_index do |param, index|
@@ -181,7 +180,7 @@ module Synergy1c7Connector
         end
       end
 
-      get_taxons("Масла и автокосметика", params, autocosmetic)
+      get_taxons("Масла, спецжидкости и автокосметика", params, autocosmetic)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse autocosmetics XLSX: " + filename
