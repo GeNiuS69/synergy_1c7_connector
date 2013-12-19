@@ -172,9 +172,8 @@ module Synergy1c7Connector
       parse_analogs(autocosmetic, table["код аналога"])
 
       group = table["группа"].first
-      maker = table["производитель"].first
 
-      params = ["Автохимия и автокосметика", group, maker]
+      params = ["Автохимия и автокосметика", group]
 
       params.each_with_index do |param, index|
         unless param.nil?
@@ -209,11 +208,14 @@ module Synergy1c7Connector
 
       parse_analogs(bus, table ["код аналога"])
 
+
       root = "шины"
       width = table["диаметр"].first.to_s
       profile = table["профиль"].first.to_s
       height = table["высота"].first.to_s
       season = table["сезонность"].first
+
+      subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
 
       params = [root, width, profile, height, season]
       if params.any?{|param| param.nil?}
@@ -229,7 +231,7 @@ module Synergy1c7Connector
       end
 
 
-      get_taxons("Колеса", params, bus)
+      get_taxons("Колеса", params, bus, nil, subtitles)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse bus XLSX: " + filename
@@ -259,9 +261,10 @@ module Synergy1c7Connector
       dco = table["ДЦО"].first.to_s
       
       params = [root, diameter, width, pcd, et, dco]
+      subtitles = [nil, "Диаметр", "Ширина", "PCD", "Вылет (ET)", "Диаметр центрального отверстия"]
 
 
-      get_taxons("Колеса", params, disc)
+      get_taxons("Колеса", params, disc, nil, subtitles)
 
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -289,17 +292,18 @@ module Synergy1c7Connector
       parse_analogs(battery, table["код аналога"])
 
       params = [table["емкость"].first.to_s, table["полярность"].first]
+      subtitles = ["Емкость", "Полярность"]
 
-      get_taxons("Аккумуляторные батареи", params, battery)
+      get_taxons("Аккумуляторные батареи", params, battery, nil, subtitles)
 
 
 
       properties = {
-        "вес" => table["вес"].first.to_s
+        "вес" => table["вес"].first.to_s,
         "высота" => table["высота"].first.to_s,
         "ширина" => table["ширина"].first.to_s,
         "длина" => table["длина"].first.to_s,
-        "емкость" => table["емкость"].first.to_s,
+        "емкость" => table["емкость"].first.to_s
       }
 
       self.add_properties(battery, properties)
@@ -331,25 +335,34 @@ module Synergy1c7Connector
       parse_analogs(lamb, table["код аналога"])    
 
 
-      if table["тип1"].first.nil?
-        puts "Type 1 is empty!"
-        File.delete("#{Rails.root}/public/uploads/#{filename}")
-        puts "End parse lamb XLSX: " + filename    
-        return
-      end
+      # if table["тип1"].first.nil?
+      #   puts "Type 1 is empty!"
+      #   File.delete("#{Rails.root}/public/uploads/#{filename}")
+      #   puts "End parse lamb XLSX: " + filename    
+      #   return
+      # end
+
+      # type2 = table["тип2"].first
+
+      # table[:table].each do |table|
+      #   unless table.empty?        
+      #     type2 = table["тип2"] unless table["тип2"].nil?
+      #     params = [table["тип1"], type2]
+      #     params = params.compact
+      #     get_taxons("Лампы", params, lamb)
+      #   end
+      # end
 
       type2 = table["тип2"].first
+      params_array = []
+      table["тип1"].compact.each do |type|
+        params = [type, type2]
+        params_array << params
+      end      
 
-      table[:table].each do |table|
-        unless table.empty?        
-          type2 = table["тип2"] unless table["тип2"].nil?
-          params = [table["тип1"], type2]
-          params = params.compact
-          get_taxons("Лампы", params, lamb)
-        end
+      params_array.each do |params|
+        get_taxons("Лампы", params, lamb)
       end
-
-
 
       properties = {
         "напряжение" => table["V"].first.to_s,
@@ -497,7 +510,7 @@ module Synergy1c7Connector
 
      end
 
-    def get_taxons(taxonomy_name, params, item, modification = nil)
+    def get_taxons(taxonomy_name, params, item, modification = nil, subtitles = nil)
 
       if params.empty?
         puts 'No aggregate levels'
@@ -508,21 +521,34 @@ module Synergy1c7Connector
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
       root_taxon = taxons.where('parent_id IS ?',nil).first
+      unless subtitles.nil?
+        root_taxon.subtitle = subtitles.shift
+        root_taxon.save
+      end
 
       first_level = params.shift
       unless first_level.nil?
         taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
 
         taxon.car_modifications << modification unless modification.nil?
+        unless subtitles.nil?
+          taxon.subtitle = subtitles.shift 
+          taxon.save
+        end
         parent = taxon
 
       end
 
-      params.each do |param|
+      params.each_with_index do |param, index|
         unless param.nil?
           taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
           taxon.car_modifications << modification unless modification.nil?
+          unless subtitles.nil?
+            taxon.subtitle = subtitles[index] 
+            taxon.save
+          end
           parent = taxon
+
         end
       end  
 
