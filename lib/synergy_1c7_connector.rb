@@ -36,7 +36,10 @@ module Synergy1c7Connector
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
+        # ParserWorker.new.perform(file)
+
       end
+
 
       oils.each do |file|
         self.parse_oil(file)
@@ -104,7 +107,14 @@ module Synergy1c7Connector
         return
       end
 
+      if check_unique(table)
+        puts "Detail with same name and different 1C code!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
       detail = init_detail(table)
+
 
       parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
@@ -484,23 +494,29 @@ module Synergy1c7Connector
             end
 
 
-
-          puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s unless auto["модификация"].nil?
+          unless auto["модификация"].nil?
+            puts Time.now.strftime("%y %m %d %h:%m:%s: ") + "Start getting "  + auto["модификация"].to_s 
+          end  
           region = maker_country(auto["марка"])
 
           unless region == :none
-            start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
-            end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
 
             if region == :eng
+              start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
+              end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
+
               car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя, л"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
             elsif region == :ru
-              maker = rus_maker_name(auto["марка"])
-              car = Spree::CarMaker.find_or_create_by_name(maker.to_s).car_models.find_or_create_by_name("отечественная").car_modifications.where(:name => auto["модификация"].to_s).first_or_create
+              maker = rus_maker_name(auto["марка"]).to_s
+              model = auto["модель"].to_s
+              modification_name = maker + ' ' + model
+              car = Spree::CarMaker.find_or_create_by_name(maker).car_models.find_or_create_by_name(model).car_modifications.where(:name => modification_name).first_or_create
+              maker = car.car_model.car_maker
+              maker.country = 'ru'
+              maker.save
             end
             detail.car_modifications << car 
           end
-
           get_taxons("Сборочная группа", agr_levels, detail, car)
 
          end 
@@ -525,6 +541,7 @@ module Synergy1c7Connector
         root_taxon.subtitle = subtitles.shift
         root_taxon.save
       end
+
 
       first_level = params.shift
       unless first_level.nil?
@@ -577,6 +594,15 @@ module Synergy1c7Connector
 
       detail.save
       detail
+    end
+
+    def check_unique(table)
+      detail = Spree::Product.where(:code_1c => table["код"].first.to_s).first_or_initialize
+      permalink = table["наименование"].first.to_url
+      permalink_detail = Spree::Product.where("permalink=?", permalink).first
+      return false if permalink_detail.nil?
+      return false if detail.code_1c == permalink_detail.code_1c 
+      true
     end
 
     def set_product_price
