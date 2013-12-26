@@ -35,9 +35,7 @@ module Synergy1c7Connector
       catalogs = Dir.glob('catalogs/*.xml')
 
       details.each_with_index do |file, index|
-        self.parse_detail(file, index)
-        # ParserWorker.new.perform(file)
-
+        self.parse_detail(file)
       end
 
 
@@ -114,15 +112,12 @@ module Synergy1c7Connector
       end
 
       detail = init_detail(table)
-
-
+      detail.taxons.clear
+      detail.car_modifications.clear
       parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
 
       parse_agr_levels(detail, table)
-
-
-
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse details XLSX: " + filename
 
@@ -302,7 +297,7 @@ module Synergy1c7Connector
       parse_analogs(battery, table["код аналога"])
 
       params = [table["емкость"].first.to_s, table["полярность"].first]
-      subtitles = ["Емкость", "Полярность"]
+      subtitles = ["Емкость, А/Ч", "Полярность"]
 
       get_taxons("Аккумуляторные батареи", params, battery, nil, subtitles)
 
@@ -343,25 +338,6 @@ module Synergy1c7Connector
 
       parse_original_numbers(lamb, table["оригинальный номер"])
       parse_analogs(lamb, table["код аналога"])    
-
-
-      # if table["тип1"].first.nil?
-      #   puts "Type 1 is empty!"
-      #   File.delete("#{Rails.root}/public/uploads/#{filename}")
-      #   puts "End parse lamb XLSX: " + filename    
-      #   return
-      # end
-
-      # type2 = table["тип2"].first
-
-      # table[:table].each do |table|
-      #   unless table.empty?        
-      #     type2 = table["тип2"] unless table["тип2"].nil?
-      #     params = [table["тип1"], type2]
-      #     params = params.compact
-      #     get_taxons("Лампы", params, lamb)
-      #   end
-      # end
 
       type2 = table["тип2"].first
       params_array = []
@@ -504,8 +480,18 @@ module Synergy1c7Connector
             if region == :eng
               start_production = auto["начало выпуска"].eql?('-') ? nil : Date.strptime(auto["начало выпуска"],'%Y.%m')
               end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
-
-              car = Spree::CarMaker.find_or_create_by_name(auto["марка"]).car_models.find_or_create_by_name(auto["модель"]).car_modifications.where(:name => auto["модификация"], :engine_displacement => auto["объем двигателя, л"],:volume => auto["объем двигателя, л"], :engine_type => auto["топливо"], :hoursepower => auto["л.с."], :power => auto["кВт"], :body_style => auto["тип кузова"], :start_production => start_production, :end_production => end_production).first_or_create
+              maker = Spree::CarMaker.find_or_create_by_name(auto["марка"])
+              model = maker.car_models.find_or_create_by_name(auto["модель"])
+              car = model.car_modifications.where(:name => auto["модификация"]).first_or_create
+              car.engine_displacement = auto["объем двигателя см3"].to_s
+              car.volume = auto["объем двигателя, л"]
+              car.engine_type = auto["топливо"]
+              car.hoursepower = auto["л.с."]
+              car.power = auto["кВт"]
+              car.body_style = auto["тип кузова"]
+              car.start_production = start_production
+              car.end_production = end_production
+              car.save
             elsif region == :ru
               maker = rus_maker_name(auto["марка"]).to_s
               model = auto["модель"].to_s
@@ -533,7 +519,6 @@ module Synergy1c7Connector
         return
       end
 
-
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
       root_taxon = taxons.where('parent_id IS ?',nil).first
@@ -542,11 +527,10 @@ module Synergy1c7Connector
         root_taxon.save
       end
 
-
       first_level = params.shift
       unless first_level.nil?
         taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
-
+        taxon.products << item
         taxon.car_modifications << modification unless modification.nil?
         unless subtitles.nil?
           taxon.subtitle = subtitles.shift 
@@ -564,11 +548,12 @@ module Synergy1c7Connector
             taxon.subtitle = subtitles[index] 
             taxon.save
           end
+          taxon.products << item
+
           parent = taxon
 
         end
       end  
-
       taxon.products << item
       taxon
     end
@@ -645,7 +630,7 @@ module Synergy1c7Connector
 
     def rus_maker_name(maker)
       vaz = ["ваз", "автоваз", "lada"]
-      vaz.include?(maker.strip.mb_chars.downcase) ? "АвтоВаз" : maker
+      vaz.include?(maker.strip.mb_chars.downcase) ? "ВАЗ" : maker
     end
 
   end
