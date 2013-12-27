@@ -6,7 +6,7 @@ ru:
       taxon:
         code_1c: "Код 1C"
 
-  one_c7_connector: "Парсер XLS таблиц"
+  one_c7_connector: "Загрузка товаров"
   one_c7_connector_desc: "Импорт товаров из XLS файлов"
 
   parsein_taxonomy: "Корневая таксономия для загрузки"

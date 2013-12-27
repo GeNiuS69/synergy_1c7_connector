@@ -35,7 +35,7 @@ module Synergy1c7Connector
       catalogs = Dir.glob('catalogs/*.xml')
 
       details.each_with_index do |file, index|
-        self.parse_detail(file)
+        self.parse_detail(file, index)
       end
 
 
