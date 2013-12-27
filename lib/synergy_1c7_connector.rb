@@ -136,6 +136,7 @@ module Synergy1c7Connector
       end
 
       oil = self.init_detail(table)
+      oil.taxons.clear
       parse_original_numbers(oil, table["оригинальный номер"])
       parse_analogs(oil, table["аналог"])
 
@@ -172,6 +173,7 @@ module Synergy1c7Connector
       end
 
       autocosmetic = self.init_detail(table)
+      autocosmetic.taxons.clear
 
       parse_original_numbers(autocosmetic, table["ориг. номера"])
       parse_analogs(autocosmetic, table["код аналога"])
@@ -204,6 +206,7 @@ module Synergy1c7Connector
       end
 
       bus = self.init_detail(table)
+      bus.taxons.clear
       parse_original_numbers(bus, table["ориг. номера"])
 
 
@@ -255,9 +258,9 @@ module Synergy1c7Connector
       end
 
       disc = self.init_detail(table)
+      disc.taxons.clear
       parse_original_numbers(disc, table["оригинальный номер"])
       parse_analogs(disc, table["код аналога"])
-
       root = "диски"
       diameter = table["диаметр"].first.to_s
       width = table["ширина"].first.to_s
@@ -293,6 +296,7 @@ module Synergy1c7Connector
       end
 
       battery = self.init_detail(table)
+      battery.taxons.clear
       parse_original_numbers(battery, table["оригинальный номер"])
       parse_analogs(battery, table["код аналога"])
 
@@ -335,7 +339,7 @@ module Synergy1c7Connector
 
 
       lamb = self.init_detail(table)
-
+      lamb.taxons.clear
       parse_original_numbers(lamb, table["оригинальный номер"])
       parse_analogs(lamb, table["код аналога"])    
 
@@ -377,6 +381,7 @@ module Synergy1c7Connector
       end
 
       instrument = init_detail(table)
+      instrument.taxons.clear
 
       parse_original_numbers(instrument, table["оригинальный номер"])
       parse_analogs(instrument, table["код аналога"])    
