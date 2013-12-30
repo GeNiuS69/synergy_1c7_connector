@@ -66,7 +66,6 @@ module Synergy1c7Connector
       autocosmetics.each do |file|
         self.parse_autocosmetic(file)
       end
-
       catalogs.each do |catalog|
         self.parse_xml(catalog)
       end
@@ -396,13 +395,12 @@ module Synergy1c7Connector
     end
 
     def parse_xml(filename)
-        set_product_price
         puts 'Begin parse XML: ' + filename
         xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
         # Parsing
         details = xml.css("ДЕТАЛЬ")
-        details.each do |detail|
-
+        details.each_with_index do |detail, index|
+          puts 'Detail №' + index.to_s
           code_1c = detail.css("КОД").first.text
           product = Spree::Product.where(:code_1c => code_1c).first
           unless product.nil?
@@ -531,7 +529,6 @@ module Synergy1c7Connector
         root_taxon.subtitle = subtitles.shift
         root_taxon.save
       end
-
       first_level = params.shift
       unless first_level.nil?
         taxon = taxons.where(:parent_id => root_taxon, :name => first_level, :permalink => root_taxon.permalink + '/' + first_level.to_url).first_or_create
@@ -544,7 +541,6 @@ module Synergy1c7Connector
         parent = taxon
 
       end
-
       params.each_with_index do |param, index|
         unless param.nil?
           taxon = taxons.where(:parent_id => parent.id, :name => param, :permalink => parent.permalink + '/' + param.to_url).first_or_create
