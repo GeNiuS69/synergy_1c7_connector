@@ -32,6 +32,7 @@ module Synergy1c7Connector
       lambs = Dir.glob("lambs/**.xlsx")
       instruments = Dir.glob("instruments/**.xlsx")
       autocosmetics = Dir.glob('autocosmetics/*.xlsx')
+      hoods = Dir.glob("hoods/*xlsx")
       catalogs = Dir.glob('catalogs/*.xml')
 
       details.each_with_index do |file, index|
@@ -68,6 +69,10 @@ module Synergy1c7Connector
       end
       catalogs.each do |catalog|
         self.parse_xml(catalog)
+      end
+
+      hoods.each do |hood|
+        self.parse_hood(hood)
       end
 
     end
@@ -244,6 +249,52 @@ module Synergy1c7Connector
       puts "End parse bus XLSX: " + filename
     end
 
+    def parse_hood(filename)
+      puts "Begin parse hood XLSX: " + filename
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","артикул","код аналога", "оригинальный номер","производитель", "Диаметр"])
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
+      hood = self.init_detail(table)
+      hood.taxons.clear
+      parse_original_numbers(hood, table["оригинальный номер"])
+
+      parse_analogs(hood, table ["код аналога"])
+
+
+      root = "колпаки"
+      width = table["Диаметр"].first.to_s
+
+      subtitles = [nil, "Диаметр"]
+
+      params = [root, width]
+
+      if params.any?{|param| param.nil?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+
+        return
+      end
+
+      if params.any?{|param| param.empty?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
+
+      get_taxons("Колеса", params, hood, nil, subtitles)
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse hood XLSX: " + filename
+    end
+
+
     def parse_disc(filename)
       puts "Begin parse disc XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
@@ -395,12 +446,10 @@ module Synergy1c7Connector
     end
 
     def parse_xml(filename)
-        puts 'Begin parse XML: ' + filename
         xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
         # Parsing
         details = xml.css("ДЕТАЛЬ")
         details.each_with_index do |detail, index|
-          puts 'Detail №' + index.to_s
           code_1c = detail.css("КОД").first.text
           product = Spree::Product.where(:code_1c => code_1c).first
           unless product.nil?
