@@ -70,7 +70,6 @@ module Synergy1c7Connector
       catalogs.each do |catalog|
         self.parse_xml(catalog)
       end
-
       hoods.each do |hood|
         self.parse_hood(hood)
       end

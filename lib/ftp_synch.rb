@@ -80,7 +80,7 @@ module FtpSynch
         end
 
         Dir.chdir(Rails.root.join('public','uploads', 'hoods'))
-        autocosmetics.each do |file|
+        hoods.each do |file|
           ftp.getbinaryfile(file.split.last)
           ftp.delete(file.split.last)
         end
