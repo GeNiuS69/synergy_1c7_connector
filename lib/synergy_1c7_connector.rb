@@ -20,7 +20,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      FtpSynch::Get.new.try_download
+      # FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
 
@@ -130,7 +130,7 @@ module Synergy1c7Connector
       puts "Begin parse oils XLSX: " + filename
 
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","аналог","оригинальный номер", "тип","производитель","состав","вязкость","объем,л"])
+      table = xls.get_table(["код","наименование","артикул","аналог","оригинальный номер", "тип","производитель","состав","вязкость","объем,л"])
      
       if table.nil?
         puts "Wrong table format!"
@@ -167,7 +167,7 @@ module Synergy1c7Connector
       puts "Begin parse autocosmetic xlsx: " + filename
       
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","код аналога","ориг. номера", "производитель","группа"])
+      table = xls.get_table(["код","наименование", "артикул","код аналога","ориг. номера", "производитель","группа"])
      
       if table.nil?
         puts "Wrong table format!"
@@ -182,7 +182,6 @@ module Synergy1c7Connector
       parse_analogs(autocosmetic, table["код аналога"])
 
       group = table["группа"].first
-
       params = ["Автохимия и автокосметика", group]
 
       params.each_with_index do |param, index|
@@ -190,7 +189,6 @@ module Synergy1c7Connector
           params[index] = param.slice(0,1).mb_chars.capitalize.to_s + param.slice(1..-1)
         end
       end
-
       get_taxons("Масла, спецжидкости и автокосметика", params, autocosmetic)
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -220,7 +218,7 @@ module Synergy1c7Connector
       parse_analogs(bus, table ["код аналога"])
 
 
-      root = "шины"
+      root = "автошины"
       width = table["диаметр"].first.to_s
       profile = table["профиль"].first.to_s
       height = table["высота"].first.to_s
@@ -616,11 +614,15 @@ module Synergy1c7Connector
       detail.name = table["наименование"].first
 
       detail.permalink = table["наименование"].first.to_url
-
-
+      detail.sku = ""
       unless table["артикул"].nil?
-        detail.sku = table["артикул"].first || ''
+        detail.sku = table["артикул"].first.try(:to_s) unless table["артикул"].first.nil?
+          table["артикул"].compact.each_with_index do |sku, index|
+            sku_temp = Spree::Sku.where(:value => sku.to_s).first_or_create
+            detail.skus << sku_temp
+          end
       end
+
 
 
       detail.price ||= 0
