@@ -117,7 +117,7 @@ module Synergy1c7Connector
       detail = init_detail(table)
       detail.taxons.clear
       detail.car_modifications.clear
-      parse_original_numbers(detail, table["ориг. номера"])
+      parse_original_numbers(detail, table["оригинальный номер"])
       parse_analogs(detail, table["код аналога"])
 
       parse_agr_levels(detail, table)
@@ -167,7 +167,7 @@ module Synergy1c7Connector
       puts "Begin parse autocosmetic xlsx: " + filename
       
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование", "артикул","код аналога","ориг. номера", "производитель","группа"])
+      table = xls.get_table(["код","наименование", "артикул","код аналога","оригинальный номер", "производитель","группа"])
      
       if table.nil?
         puts "Wrong table format!"
@@ -178,7 +178,7 @@ module Synergy1c7Connector
       autocosmetic = self.init_detail(table)
       autocosmetic.taxons.clear
 
-      parse_original_numbers(autocosmetic, table["ориг. номера"])
+      parse_original_numbers(autocosmetic, table["оригинальный номер"])
       parse_analogs(autocosmetic, table["код аналога"])
 
       group = table["группа"].first
@@ -198,7 +198,7 @@ module Synergy1c7Connector
     def parse_bus(filename)
       puts "Begin parse bus XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы"])
+      table = xls.get_table(["код","наименование","артикул","код аналога", "оригинальный номер","производитель","профиль","высота","диаметр", "сезонность", "шипы"])
 
       if table.nil?
         puts "Wrong table format!"
@@ -208,7 +208,7 @@ module Synergy1c7Connector
 
       bus = self.init_detail(table)
       bus.taxons.clear
-      parse_original_numbers(bus, table["ориг. номера"])
+      parse_original_numbers(bus, table["оригинальный номер"])
 
 
       unless table["шипы"].first.nil?
