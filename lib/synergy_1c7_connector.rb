@@ -117,7 +117,7 @@ module Synergy1c7Connector
       detail = init_detail(table)
       detail.taxons.clear
       detail.car_modifications.clear
-      parse_original_numbers(detail, table["оригинальный номер"])
+      parse_original_numbers(detail, table["ориг. номера"])
       parse_analogs(detail, table["код аналога"])
 
       parse_agr_levels(detail, table)
