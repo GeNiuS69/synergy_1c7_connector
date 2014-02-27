@@ -198,7 +198,7 @@ module Synergy1c7Connector
     def parse_bus(filename)
       puts "Begin parse bus XLSX: " + filename
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","артикул","код аналога", "оригинальный номер","производитель","профиль","высота","диаметр", "сезонность", "шипы"])
+      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы"])
 
       if table.nil?
         puts "Wrong table format!"
@@ -208,7 +208,7 @@ module Synergy1c7Connector
 
       bus = self.init_detail(table)
       bus.taxons.clear
-      parse_original_numbers(bus, table["оригинальный номер"])
+      parse_original_numbers(bus, table["ориг. номера"])
 
 
       unless table["шипы"].first.nil?
@@ -218,7 +218,7 @@ module Synergy1c7Connector
       parse_analogs(bus, table ["код аналога"])
 
 
-      root = "автошины"
+      root = "Автошины"
       width = table["диаметр"].first.to_s
       profile = table["профиль"].first.to_s
       height = table["высота"].first.to_s
@@ -264,7 +264,7 @@ module Synergy1c7Connector
       parse_analogs(hood, table ["код аналога"])
 
 
-      root = "колпаки"
+      root = "Колпаки"
       width = table["Диаметр"].first.to_s
 
       subtitles = [nil, "Диаметр"]
@@ -308,7 +308,7 @@ module Synergy1c7Connector
       disc.taxons.clear
       parse_original_numbers(disc, table["оригинальный номер"])
       parse_analogs(disc, table["код аналога"])
-      root = "диски"
+      root = "Диски"
       diameter = table["диаметр"].first.to_s
       width = table["ширина"].first.to_s
       pcd = table["PCD"].first.to_s
