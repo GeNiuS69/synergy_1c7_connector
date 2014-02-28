@@ -85,6 +85,11 @@ module FtpSynch
           ftp.getbinaryfile(file.split.last)
           ftp.delete(file.split.last)
         end
+        Dir.chdir(Rails.root.join('public','uploads', 'categories'))
+        categories.each do |file|
+          ftp.getbinaryfile(file.split.last)
+          ftp.delete(file.split.last)
+        end
 
         puts 'End downloading'
         ftp.close
