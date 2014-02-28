@@ -27,6 +27,7 @@ module FtpSynch
         hoods = ftp.list("hoods/**.xlsx")
 
         catalogs = ftp.list("catalogs/*xml")
+        categories = ftp.list("categories/*.xlsx")
 
         Dir.chdir(Rails.root.join('public','uploads', 'oils'))
         oils.each do |oil|

@@ -34,6 +34,7 @@ module Synergy1c7Connector
       autocosmetics = Dir.glob('autocosmetics/*.xlsx')
       hoods = Dir.glob("hoods/*xlsx")
       catalogs = Dir.glob('catalogs/*.xml')
+      categories = Dir.glob('categories/*.xlsx')
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
@@ -72,6 +73,10 @@ module Synergy1c7Connector
       end
       hoods.each do |hood|
         self.parse_hood(hood)
+      end
+
+      categories.each do |category|
+        self.parse_category(category)
       end
 
     end
@@ -139,6 +144,7 @@ module Synergy1c7Connector
       end
 
       oil = self.init_detail(table)
+      oil.set_property("объем", table["объем,л"].first)
       oil.taxons.clear
       parse_original_numbers(oil, table["оригинальный номер"])
       parse_analogs(oil, table["аналог"])
@@ -149,6 +155,7 @@ module Synergy1c7Connector
 
       params = ["Масло", taxon_type_name]
       params = params.flatten
+
 
       params.each_with_index do |param, index|
         unless param.nil?
@@ -468,6 +475,23 @@ module Synergy1c7Connector
         end
         File.delete("#{Rails.root}/public/uploads/#{filename}")
         puts "End parse XML: " + filename
+      end
+
+      def parse_category(filename)
+        puts "Begin parse categories XLSX: " + filename
+
+        xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+        table = xls.get_table(["код","название", "категория"])
+        table[:table].each_with_index do |t, index|
+          product = Spree::Product.where(:code_1c => t["код"].to_s).first
+          if product
+            product.discount_category = t["категория"]
+            product.save
+            puts index
+          end
+        end
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse instrument XLSX: " + filename    
       end
 
 
