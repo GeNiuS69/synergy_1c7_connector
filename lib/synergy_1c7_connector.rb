@@ -35,6 +35,7 @@ module Synergy1c7Connector
       hoods = Dir.glob("hoods/*xlsx")
       catalogs = Dir.glob('catalogs/*.xml')
       categories = Dir.glob('categories/*.xlsx')
+      quantity = Dir.glob('quantity/*.xlsx')
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
@@ -77,6 +78,9 @@ module Synergy1c7Connector
 
       categories.each do |category|
         self.parse_category(category)
+      end
+      quantity.each do |quantity|
+        self.parse_quantity(quantity)
       end
 
     end
@@ -492,6 +496,23 @@ module Synergy1c7Connector
         end
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse instrument XLSX: " + filename    
+      end
+
+      def parse_quantity(filename)
+        puts "Begin parse quantity XLSX: " + filename
+
+          xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+          table = xls.get_table(["код","название", "количество"])
+          table[:table].each_with_index do |t, index|
+            product = Spree::Product.where(:code_1c => t["код"].to_s).first
+            if product
+              product.min_quantity = t["количество"]
+              product.save
+              puts index
+            end
+          end
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        puts "End parse instrument XLSX: " + filename    
       end
 
 
