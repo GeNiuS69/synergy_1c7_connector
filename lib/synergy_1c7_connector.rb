@@ -454,6 +454,9 @@ module Synergy1c7Connector
     end
 
     def parse_xml(filename)
+
+        Spree::StockItem.update_all(:count_on_hand => 0)
+        Spree::Price.update_all(:amount => 0)
         xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
         # Parsing
         details = xml.css("ДЕТАЛЬ")
@@ -462,10 +465,12 @@ module Synergy1c7Connector
           product = Spree::Product.where(:code_1c => code_1c).first
           unless product.nil?
             product.price = detail.css("ЦЕНА").first.text.to_d
+
             product.save(:validate => false)
             unless product.stock_items.first.nil?
               product.stock_items.first.update_attribute(:count_on_hand,detail.css("ОСТАТОК").first.text.to_i) 
             end
+            puts index
           end
 
           #product.name = detail.css("НАЗВАНИЕ").first.text
