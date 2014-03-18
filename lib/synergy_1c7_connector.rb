@@ -455,8 +455,8 @@ module Synergy1c7Connector
 
     def parse_xml(filename)
 
-        # Spree::StockItem.update_all(:count_on_hand => 0)
-        # Spree::Price.update_all(:amount => 0)
+        Spree::StockItem.update_all(:count_on_hand => 0)
+        Spree::Price.update_all(:amount => 0)
         xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
         # Parsing
         details = xml.css("ДЕТАЛЬ")
