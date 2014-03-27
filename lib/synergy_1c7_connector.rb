@@ -580,15 +580,11 @@ module Synergy1c7Connector
               end_production = auto["конец выпуска"].eql?('-') ? nil : Date.strptime(auto["конец выпуска"],'%Y.%m')
               maker = Spree::CarMaker.find_or_create_by_name(auto["марка"])
               model = maker.car_models.find_or_create_by_name(auto["модель"])
-              car = model.car_modifications.where(:name => auto["модификация"]).first_or_create
+              car = model.car_modifications.where(:name => auto["модификация"], :hoursepower => auto["л.с."], :volume => auto["объем двигателя, л"], :start_production => start_production, :end_production => end_production).first_or_create
               car.engine_displacement = auto["объем двигателя см3"].to_s
-              car.volume = auto["объем двигателя, л"]
               car.engine_type = auto["топливо"]
-              car.hoursepower = auto["л.с."]
               car.power = auto["кВт"]
               car.body_style = auto["тип кузова"]
-              car.start_production = start_production
-              car.end_production = end_production
               car.save
             elsif region == :ru
               maker = rus_maker_name(auto["марка"]).to_s
