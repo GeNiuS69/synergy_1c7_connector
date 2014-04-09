@@ -34,8 +34,10 @@ module Synergy1c7Connector
       autocosmetics = Dir.glob('autocosmetics/*.xlsx')
       hoods = Dir.glob("hoods/*xlsx")
       catalogs = Dir.glob('catalogs/*.xml')
+      catalog_updates = Dir.glob('catalog_updates/*.xml')
       categories = Dir.glob('categories/*.xlsx')
       quantity = Dir.glob('quantity/*.xlsx')
+      backorder_products = Dir.glob('backorder/*.xlsx')
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
@@ -70,8 +72,13 @@ module Synergy1c7Connector
         self.parse_autocosmetic(file)
       end
       catalogs.each do |catalog|
+        self.parse_xml(catalog, true)
+      end
+      
+      catalog_updates.each do |catalog|
         self.parse_xml(catalog)
       end
+
       hoods.each do |hood|
         self.parse_hood(hood)
       end
@@ -79,8 +86,13 @@ module Synergy1c7Connector
       categories.each do |category|
         self.parse_category(category)
       end
+
       quantity.each do |quantity|
         self.parse_quantity(quantity)
+      end
+
+      backorder_products.each do |product|
+        self.parse_backordered(product)
       end
 
     end
@@ -127,6 +139,8 @@ module Synergy1c7Connector
       detail.taxons.clear
       detail.car_modifications.clear
       parse_original_numbers(detail, table["ориг. номера"])
+
+      detail.products.clear
       parse_analogs(detail, table["код аналога"])
 
       parse_agr_levels(detail, table)
@@ -453,10 +467,40 @@ module Synergy1c7Connector
       puts "End parse instrument XLSX: " + filename    
     end
 
-    def parse_xml(filename)
+    def parse_backordered(filename)
+      puts "Begin parse backorder XLSX: " + filename
 
-        Spree::StockItem.update_all(:count_on_hand => 0)
-        Spree::Price.update_all(:amount => 0)
+      xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы", "индекс загрузки", "индекс скорости", "происхождение", "цена", "количество", "срок поставки"])
+
+
+      if table.nil?
+        puts "Wrong table format!"
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+
+      instrument = init_detail(table)
+      instrument.taxons.clear
+
+      parse_original_numbers(instrument, table["оригинальный номер"])
+      parse_analogs(instrument, table["код аналога"])    
+
+      params = xls[1][6].value.split(/[\\]/)
+
+      get_taxons("Инструмент", params, instrument)
+
+
+      File.delete("#{Rails.root}/public/uploads/#{filename}")
+      puts "End parse instrument XLSX: " + filename    
+    end
+
+    def parse_xml(filename, clear=false)
+
+        if clear
+          Spree::StockItem.update_all(:count_on_hand => 0)
+          Spree::Price.update_all(:amount => 0)
+        end
         xml = Nokogiri::XML.parse(File.read("#{Rails.root}/public/uploads/#{filename}"))
         # Parsing
         details = xml.css("ДЕТАЛЬ")

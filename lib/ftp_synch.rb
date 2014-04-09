@@ -26,7 +26,9 @@ module FtpSynch
         autocosmetics = ftp.list("autocosmetics/**.xlsx")
         hoods = ftp.list("hoods/**.xlsx")
 
-        catalogs = ftp.list("catalogs/*xml")
+        catalogs = ftp.list("catalogs/*.xml")
+        catalog_updates = ftp.list("catalog_updates/*.xml")
+
         categories = ftp.list("categories/*.xlsx")
         quantity = ftp.list("quantity/*.xlsx")
 
@@ -78,6 +80,12 @@ module FtpSynch
 
         Dir.chdir(Rails.root.join('public','uploads', 'catalogs'))
         catalogs.each do |catalog|
+          ftp.getbinaryfile(catalog.split.last)
+          ftp.delete(catalog.split.last)
+        end
+
+        Dir.chdir(Rails.root.join('public','uploads', 'catalog_updates'))
+        catalog_updates.each do |catalog|
           ftp.getbinaryfile(catalog.split.last)
           ftp.delete(catalog.split.last)
         end
