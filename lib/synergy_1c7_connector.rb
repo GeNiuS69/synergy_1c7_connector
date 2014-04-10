@@ -518,7 +518,7 @@ module Synergy1c7Connector
       puts "End parse instrument XLSX: " + filename    
     end
 
-    def parse_backorder_tie(filename)
+    def parse_backorder_disk(filename)
           puts "Begin parse backorder XLSX: " + filename
 
           xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
