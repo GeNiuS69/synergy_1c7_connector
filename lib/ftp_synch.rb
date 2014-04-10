@@ -31,6 +31,9 @@ module FtpSynch
 
         categories = ftp.list("categories/*.xlsx")
         quantity = ftp.list("quantity/*.xlsx")
+        backorder_tie = ftp.list("backorder_tie/*.xlsx")
+        backorder_disk = ftp.list("backorder_disk/*.xlsx")
+
 
 
         Dir.chdir(Rails.root.join('public','uploads', 'oils'))
@@ -103,6 +106,17 @@ module FtpSynch
 
         Dir.chdir(Rails.root.join('public','uploads', 'quantity'))
         quantity.each do |file|
+          ftp.getbinaryfile(file.split.last)
+          ftp.delete(file.split.last)
+        end
+        Dir.chdir(Rails.root.join('public','uploads', 'backorder_tie'))
+        backorder_tie.each do |file|
+          ftp.getbinaryfile(file.split.last)
+          ftp.delete(file.split.last)
+        end
+        
+        Dir.chdir(Rails.root.join('public','uploads', 'backorder_tie'))
+        backorder_disk.each do |file|
           ftp.getbinaryfile(file.split.last)
           ftp.delete(file.split.last)
         end

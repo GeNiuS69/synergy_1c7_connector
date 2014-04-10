@@ -37,7 +37,8 @@ module Synergy1c7Connector
       catalog_updates = Dir.glob('catalog_updates/*.xml')
       categories = Dir.glob('categories/*.xlsx')
       quantity = Dir.glob('quantity/*.xlsx')
-      backorder_products = Dir.glob('backorder/*.xlsx')
+      backorder_tie = Dir.glob('backorder_tie/*.xlsx')
+      backorder_disk = Dir.glob('backorder_disk/*.xlsx')
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
@@ -91,8 +92,12 @@ module Synergy1c7Connector
         self.parse_quantity(quantity)
       end
 
-      backorder_products.each do |product|
-        self.parse_backordered(product)
+      backorder_tie.each do |product|
+        self.parse_backorder_tie(product)
+      end
+
+      backorder_disk.each do |disk|
+        self.parse_backorder_disk(disk)
       end
 
     end
@@ -467,11 +472,11 @@ module Synergy1c7Connector
       puts "End parse instrument XLSX: " + filename    
     end
 
-    def parse_backordered(filename)
+    def parse_backorder_tie(filename)
       puts "Begin parse backorder XLSX: " + filename
 
       xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы", "индекс загрузки", "индекс скорости", "происхождение", "цена", "количество", "срок поставки"])
+      table = xls.get_table(["код","наименование","артикул","код аналога", "ориг. номера","производитель","профиль","высота","диаметр", "сезонность", "шипы", "индекс нагрузки", "индекс скорости", "происхождение", "цена", "количество", "срок поставки"])
 
 
       if table.nil?
@@ -479,20 +484,84 @@ module Synergy1c7Connector
         File.delete("#{Rails.root}/public/uploads/#{filename}")
         return
       end
+      table[:table].each do |table|
+        product = Spree::Product.where(name: table["наименование"]).first_or_initialize      
+        product.taxons.clear
+        product.sku = table["наименование"]
+        product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
+        product.price = table["цена"]        
+        product.available_on = Time.now
 
-      instrument = init_detail(table)
-      instrument.taxons.clear
 
-      parse_original_numbers(instrument, table["оригинальный номер"])
-      parse_analogs(instrument, table["код аналога"])    
+        root = "Автошины"
+        width = table["диаметр"].to_s
+        profile = table["профиль"].to_s
+        height = table["высота"].to_s
+        season = table["сезонность"]
+        subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
 
-      params = xls[1][6].value.split(/[\\]/)
-
-      get_taxons("Инструмент", params, instrument)
-
+        params = [root, width, profile, height, season]
+        unless product.stock_items.first.nil?
+          product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
+        end
+        product.save
+        if params.any?{|param| param.blank?}
+          puts 'param is empty!'
+          File.delete("#{Rails.root}/public/uploads/#{filename}")
+          return
+        end
+        get_taxons("Под заказ", params, product, nil, subtitles)
+      end
+      
 
       File.delete("#{Rails.root}/public/uploads/#{filename}")
       puts "End parse instrument XLSX: " + filename    
+    end
+
+    def parse_backorder_tie(filename)
+          puts "Begin parse backorder XLSX: " + filename
+
+          xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
+          table = xls.get_table(["код","наименование","тип диска","Происхождение", "Марка","Модель","Код произв","Диаметр","Ширина", "Количество отверстий", "шипы", "индекс нагрузки", "индекс скорости", "происхождение", "цена", "количество", "срок поставки"])
+
+
+          if table.nil?
+            puts "Wrong table format!"
+            File.delete("#{Rails.root}/public/uploads/#{filename}")
+            return
+          end
+          table[:table].each do |table|
+            product = Spree::Product.where(name: table["наименование"]).first_or_initialize      
+            product.taxons.clear
+            product.sku = table["наименование"]
+            product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
+            product.price = table["цена"]        
+            product.available_on = Time.now
+
+
+            root = "Автошины"
+            width = table["диаметр"].to_s
+            profile = table["профиль"].to_s
+            height = table["высота"].to_s
+            season = table["сезонность"]
+            subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
+
+            params = [root, width, profile, height, season]
+            unless product.stock_items.first.nil?
+              product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
+            end
+            product.save
+            if params.any?{|param| param.blank?}
+              puts 'param is empty!'
+              File.delete("#{Rails.root}/public/uploads/#{filename}")
+              return
+            end
+            get_taxons("Под заказ", params, product, nil, subtitles)
+          end
+          
+
+          File.delete("#{Rails.root}/public/uploads/#{filename}")
+          puts "End parse instrument XLSX: " + filename    
     end
 
     def parse_xml(filename, clear=false)
