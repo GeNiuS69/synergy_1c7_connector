@@ -20,7 +20,7 @@ module Synergy1c7Connector
   class Connection
 
     def parse_with_ftp_copy
-      FtpSynch::Get.new.try_download
+      # FtpSynch::Get.new.try_download
       Dir.chdir(Rails.root.join('public','uploads'))
 
 
@@ -249,14 +249,15 @@ module Synergy1c7Connector
 
 
       root = "Автошины"
+
       width = table["диаметр"].first.to_s
       profile = table["профиль"].first.to_s
       height = table["высота"].first.to_s
       season = table["сезонность"].first
 
-      subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
+      subtitles = [nil, nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
 
-      params = [root, width, profile, height, season]
+      params = [root, "в наличии", width, profile, height, season]
       if params.any?{|param| param.nil?}
         puts 'param is empty!'
         File.delete("#{Rails.root}/public/uploads/#{filename}")
@@ -345,8 +346,8 @@ module Synergy1c7Connector
       et = table["вылет (ET)"].first.to_s
       dco = table["ДЦО"].first.to_s
       
-      params = [root, diameter, width, pcd, et, dco]
-      subtitles = [nil, "Диаметр", "Ширина", "PCD", "Вылет (ET)", "Диаметр центрального отверстия"]
+      params = [root, "в наличии", diameter, width, pcd, et, dco]
+      subtitles = [nil,nil, "Диаметр", "Ширина", "PCD", "Вылет (ET)", "Диаметр центрального отверстия"]
 
 
       get_taxons("Колеса", params, disc, nil, subtitles)
@@ -484,33 +485,41 @@ module Synergy1c7Connector
         File.delete("#{Rails.root}/public/uploads/#{filename}")
         return
       end
-      table[:table].each do |table|
-        product = Spree::Product.where(name: table["наименование"]).first_or_initialize      
-        product.taxons.clear
-        product.sku = table["наименование"]
-        product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
-        product.price = table["цена"]        
-        product.available_on = Time.now
+      table[:table].each_with_index do |table, index|
+        if table.present?
+          product = Spree::Product.where(name: table["наименование"]).first_or_initialize     
+          puts "now parse #{index +1 } - #{product.name}"
+          product.taxons.clear
+          product.sku = table["артикул"] if table["артикул"].present?
+          product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
+          product.price = table["цена"]        
+          product.available_on = Time.now
 
+          root = "Автошины"
+          width = table["диаметр"].try(:to_s)
+          profile = table["профиль"].try(:to_s)
+          height = table["высота"].try(:to_s)
+          season = table["сезонность"]
+          if width.nil? or profile.nil? or height.nil? or season.nil?
+            puts "Problem with row #{(index + 1)}. One of columns must be empty"
+            next
+          end
+          subtitles = [nil,nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
 
-        root = "Автошины"
-        width = table["диаметр"].to_s
-        profile = table["профиль"].to_s
-        height = table["высота"].to_s
-        season = table["сезонность"]
-        subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
+          params = [root,"под заказ", width, profile, height, season]
 
-        params = [root, width, profile, height, season]
-        unless product.stock_items.first.nil?
-          product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
+          unless product.stock_items.first.nil?
+            product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
+          end
+          product.save
+
+          if params.any?{|param| param.blank?}
+            puts 'param is empty!'
+            File.delete("#{Rails.root}/public/uploads/#{filename}")
+            return
+          end
+          get_taxons("Колеса", params, product, nil, subtitles)
         end
-        product.save
-        if params.any?{|param| param.blank?}
-          puts 'param is empty!'
-          File.delete("#{Rails.root}/public/uploads/#{filename}")
-          return
-        end
-        get_taxons("Под заказ", params, product, nil, subtitles)
       end
       
 
@@ -522,46 +531,59 @@ module Synergy1c7Connector
           puts "Begin parse backorder XLSX: " + filename
 
           xls = RubyXL::Parser.parse("#{Rails.root}/public/uploads/#{filename}")[0]
-          table = xls.get_table(["код","наименование","тип диска","Происхождение", "Марка","Модель","Код произв","Диаметр","Ширина", "Количество отверстий", "шипы", "индекс нагрузки", "индекс скорости", "происхождение", "цена", "количество", "срок поставки"])
-
+          table = xls.get_table(["код","наименование","тип диска","Происхождение", "Марка","Модель","Код произв","Диаметр","Ширина", "PCD", "DPCD", "Вылет", "Диаметр ступицы", "Цвет", "Способ обработки диска", "цена", "количество", "срок поставки"])
 
           if table.nil?
             puts "Wrong table format!"
             File.delete("#{Rails.root}/public/uploads/#{filename}")
             return
           end
-          table[:table].each do |table|
-            product = Spree::Product.where(name: table["наименование"]).first_or_initialize      
-            product.taxons.clear
-            product.sku = table["наименование"]
-            product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
-            product.price = table["цена"]        
-            product.available_on = Time.now
+
+          table[:table].each_with_index do |table, index|
+              if table.present?
+                product = Spree::Product.where(name: table["наименование"]).first_or_initialize   
+                puts "now parse #{index +1 } - #{product.name}"
+                product.taxons.clear
+                product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
+                product.price = table["цена"]        
+                product.available_on = Time.now
 
 
-            root = "Автошины"
-            width = table["диаметр"].to_s
-            profile = table["профиль"].to_s
-            height = table["высота"].to_s
-            season = table["сезонность"]
-            subtitles = [nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
+                root = "Диски"
+                diameter = table["Диаметр"].try(:to_s)
+                width = table["Ширина"].try(:to_s)
+                pcd = table["PCD"].try(:to_s)
+                dpcd = table["DPCD"].try(:to_s)
+                et = table["Вылет"]
+                dco = table["Диаметр ступицы"]
 
-            params = [root, width, profile, height, season]
-            unless product.stock_items.first.nil?
-              product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
-            end
-            product.save
-            if params.any?{|param| param.blank?}
-              puts 'param is empty!'
-              File.delete("#{Rails.root}/public/uploads/#{filename}")
-              return
-            end
-            get_taxons("Под заказ", params, product, nil, subtitles)
+
+                subtitles = [nil, nil,"Диаметр", "Ширина", "PCD", "Вылет"]
+
+                params = [root, "под заказ", diameter, width, pcd, et, dco]
+
+                unless product.stock_items.first.nil?
+                  product.stock_items.first.update_attribute(:count_on_hand, table["количество"].to_i) 
+                end
+                
+                product.save
+
+                if params.any?{|param| param.blank?}
+                  puts "param at #{index + 1} is empty!"
+                  next
+                end
+
+                get_taxons("Колеса", params, product, nil, subtitles)
+                if dpcd.present?
+                  second_params = [root, "под заказ", diameter, width, dpcd, et, dco]
+                  get_taxons("Колеса", second_params, product, nil, subtitles)
+                end
+              end
           end
           
 
           File.delete("#{Rails.root}/public/uploads/#{filename}")
-          puts "End parse instrument XLSX: " + filename    
+          puts "End parse backorder_disc XLSX: " + filename    
     end
 
     def parse_xml(filename, clear=false)
