@@ -115,7 +115,7 @@ module FtpSynch
           ftp.delete(file.split.last)
         end
         
-        Dir.chdir(Rails.root.join('public','uploads', 'backorder_tie'))
+        Dir.chdir(Rails.root.join('public','uploads', 'backorder_disk'))
         backorder_disk.each do |file|
           ftp.getbinaryfile(file.split.last)
           ftp.delete(file.split.last)
