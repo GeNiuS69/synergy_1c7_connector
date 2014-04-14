@@ -487,14 +487,15 @@ module Synergy1c7Connector
       end
       table[:table].each_with_index do |table, index|
         if table.present?
-          product = Spree::Product.where(name: table["наименование"]).first_or_initialize     
+          product = Spree::Product.where(name: table["наименование"]).first_or_initialize   
+
           puts "now parse #{index +1 } - #{product.name}"
           product.taxons.clear
           product.sku = table["артикул"] if table["артикул"].present?
           product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
           product.price = table["цена"]        
           product.available_on = Time.now
-
+          product.code_1c = table["код"]
           root = "Автошины"
           width = table["диаметр"].try(:to_s)
           profile = table["профиль"].try(:to_s)
@@ -547,7 +548,7 @@ module Synergy1c7Connector
                 product.come_at = Date.strptime(table["срок поставки"], "%d.%m.%y")
                 product.price = table["цена"]        
                 product.available_on = Time.now
-
+                product.code_1c = table["код"]
 
                 root = "Диски"
                 diameter = table["Диаметр"].try(:to_s)
