@@ -496,6 +496,7 @@ module Synergy1c7Connector
           product.price = table["цена"]        
           product.available_on = Time.now
           product.code_1c = table["код"]
+          
           root = "Автошины"
           width = table["диаметр"].try(:to_s)
           profile = table["профиль"].try(:to_s)
