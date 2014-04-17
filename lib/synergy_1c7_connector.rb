@@ -258,18 +258,13 @@ module Synergy1c7Connector
       subtitles = [nil, nil, "Диаметр", "Ширина", "Профиль", "Сезонность"]
 
       params = [root, "в наличии", width, profile, height, season]
+
       if params.any?{|param| param.nil?}
         puts 'param is empty!'
         File.delete("#{Rails.root}/public/uploads/#{filename}")
 
         return
       end
-      if params.any?{|param| param.empty?}
-        puts 'param is empty!'
-        File.delete("#{Rails.root}/public/uploads/#{filename}")
-        return
-      end
-
 
       get_taxons("Колеса", params, bus, nil, subtitles)
 
@@ -348,7 +343,12 @@ module Synergy1c7Connector
       
       params = [root, "в наличии", diameter, width, pcd, et, dco]
       subtitles = [nil,nil, "Диаметр", "Ширина", "PCD", "Вылет (ET)", "Диаметр центрального отверстия"]
-
+          
+      if params.any?{|param| param.blank?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
 
       get_taxons("Колеса", params, disc, nil, subtitles)
 
@@ -381,6 +381,12 @@ module Synergy1c7Connector
       params = [table["емкость"].first.to_s, table["полярность"].first]
       subtitles = ["Емкость, А/Ч", "Полярность"]
 
+      if params.any?{|param| param.blank?}
+        puts 'param is empty!'
+        File.delete("#{Rails.root}/public/uploads/#{filename}")
+        return
+      end
+      
       get_taxons("Аккумуляторные батареи", params, battery, nil, subtitles)
 
 
