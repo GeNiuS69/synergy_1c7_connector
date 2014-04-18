@@ -259,7 +259,7 @@ module Synergy1c7Connector
 
       params = [root, "в наличии", width, profile, height, season]
 
-      if params.any?{|param| param.nil?}
+      if params.any?{|param| param.blank? }
         puts 'param is empty!'
         File.delete("#{Rails.root}/public/uploads/#{filename}")
 
@@ -297,16 +297,10 @@ module Synergy1c7Connector
 
       params = [root, width]
 
-      if params.any?{|param| param.nil?}
+      if params.any?{|param| param.blank?}
         puts 'param is empty!'
         File.delete("#{Rails.root}/public/uploads/#{filename}")
 
-        return
-      end
-
-      if params.any?{|param| param.empty?}
-        puts 'param is empty!'
-        File.delete("#{Rails.root}/public/uploads/#{filename}")
         return
       end
 
@@ -756,6 +750,7 @@ module Synergy1c7Connector
         puts 'No aggregate levels'
         return
       end
+      params.map {|p| p.strip!} 
 
       taxonomy = Spree::Taxonomy.find_or_create_by_name(taxonomy_name)
       taxons = taxonomy.taxons
