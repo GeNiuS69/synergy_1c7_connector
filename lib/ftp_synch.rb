@@ -28,11 +28,13 @@ module FtpSynch
 
         catalogs = ftp.list("catalogs/*.xml")
         catalog_updates = ftp.list("catalog_updates/*.xml")
+        backorder_catalog = ftp.list("backorder_catalog/*.xml")
 
         categories = ftp.list("categories/*.xlsx")
         quantity = ftp.list("quantity/*.xlsx")
         backorder_tie = ftp.list("backorder_tie/*.xlsx")
         backorder_disk = ftp.list("backorder_disk/*.xlsx")
+
 
 
 
@@ -120,7 +122,12 @@ module FtpSynch
           ftp.getbinaryfile(file.split.last)
           ftp.delete(file.split.last)
         end
-
+        
+        Dir.chdir(Rails.root.join('public','uploads', 'backorder_catalog'))
+        backorder_catalog.each do |file|
+          ftp.getbinaryfile(file.split.last)
+          ftp.delete(file.split.last)
+        end
         puts 'End downloading'
         ftp.close
       end

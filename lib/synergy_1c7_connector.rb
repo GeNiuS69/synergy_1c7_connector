@@ -39,6 +39,7 @@ module Synergy1c7Connector
       quantity = Dir.glob('quantity/*.xlsx')
       backorder_tie = Dir.glob('backorder_tie/*.xlsx')
       backorder_disk = Dir.glob('backorder_disk/*.xlsx')
+      backorder_catalog = Dir.glob('backorder_catalog/*.xml')
 
       details.each_with_index do |file, index|
         self.parse_detail(file, index)
@@ -98,6 +99,10 @@ module Synergy1c7Connector
 
       backorder_disk.each do |disk|
         self.parse_backorder_disk(disk)
+      end
+
+      backorder_catalog.each do |catalog|
+        self.parse_backorder_catalog(catalog)
       end
 
     end
@@ -496,6 +501,7 @@ module Synergy1c7Connector
           product.price = table["цена"]        
           product.available_on = Time.now
           product.name = table["наименование"]
+          product.permalink = "#{product.name.to_url}-preorder"
           product.set_property("шипы", "шип.") if table["шипы"].present?
           
           root = "Автошины"
@@ -551,6 +557,7 @@ module Synergy1c7Connector
                 product.price = table["цена"]        
                 product.available_on = Time.now
                 product.name = table["наименование"]
+                product.permalink = "#{product.name.to_url}-preorder"
 
                 root = "Диски"
                 diameter = table["Диаметр"].try(:to_s)
@@ -584,9 +591,15 @@ module Synergy1c7Connector
               end
           end
           
-
           File.delete("#{Rails.root}/public/uploads/#{filename}")
           puts "End parse backorder_disc XLSX: " + filename    
+    end
+
+    def parse_backorder_catalog(filename)
+      taxon_name = 'под заказ'
+      PreorderFinder.clear_attributes(taxon_name)
+      puts "Begin to parse catalog"
+      parse_xml(filename)
     end
 
     def parse_xml(filename, clear=false)
